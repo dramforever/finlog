@@ -1,0 +1,105 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 24e7787f54211219e80d44a159b5ff67615bb490c7788b5f45963003b4a96973
+
+name:           finlog
+version:        0.1.0.0
+synopsis:       A toy compiler
+description:    Please see the README below
+category:       Compiler
+homepage:       https://github.com/dramforever/finlog#readme
+bug-reports:    https://github.com/dramforever/finlog/issues
+author:         dramforever
+maintainer:     dramforever@live.com
+copyright:      dramforever
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/dramforever/finlog
+
+library
+  exposed-modules:
+      Finlog.Framework.Analysis
+      Finlog.Framework.DAG
+      Finlog.Framework.Graph
+      Finlog.Frontend.AST
+      Finlog.Frontend.Parser
+      Finlog.Play.Analysis
+      Finlog.Utils.Queue
+      Finlog.Utils.Unique
+  other-modules:
+      Paths_finlog
+  hs-source-dirs:
+      src
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  ghc-options: -Wall -Wno-partial-type-signatures
+  build-depends:
+      base >=4.7 && <5
+    , derive-topdown
+    , free
+    , hashable
+    , megaparsec
+    , microlens-platform
+    , mtl
+    , parser-combinators
+    , primitive
+    , text
+    , unordered-containers
+  default-language: Haskell2010
+
+executable finlog-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_finlog
+  hs-source-dirs:
+      app
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  ghc-options: -Wall -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , derive-topdown
+    , finlog
+    , free
+    , hashable
+    , megaparsec
+    , microlens-platform
+    , mtl
+    , parser-combinators
+    , primitive
+    , text
+    , unordered-containers
+  default-language: Haskell2010
+
+test-suite finlog-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_finlog
+  hs-source-dirs:
+      test
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  ghc-options: -Wall -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , derive-topdown
+    , finlog
+    , free
+    , hashable
+    , megaparsec
+    , microlens-platform
+    , mtl
+    , parser-combinators
+    , primitive
+    , text
+    , unordered-containers
+  default-language: Haskell2010

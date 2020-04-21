@@ -1,0 +1,82 @@
+name:                finlog
+version:             0.1.0.0
+github:              "dramforever/finlog"
+license:             BSD3
+author:              "dramforever"
+maintainer:          "dramforever@live.com"
+copyright:           "dramforever"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+synopsis:            A toy compiler
+category:            Compiler
+
+description:         Please see the README below
+
+dependencies:
+- base >= 4.7 && < 5
+- derive-topdown
+- free
+- hashable
+- megaparsec
+- microlens-platform
+- mtl
+- parser-combinators
+- primitive
+- text
+- unordered-containers
+
+ghc-options:
+- -Wall
+- -Wno-partial-type-signatures
+
+default-extensions:
+- ConstraintKinds
+- DataKinds
+- DeriveGeneric
+- DeriveTraversable
+- DerivingStrategies
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- LambdaCase
+- MultiParamTypeClasses
+- NoStarIsType
+- OverloadedStrings
+- PartialTypeSignatures
+- RankNTypes
+- ScopedTypeVariables
+- StandaloneDeriving
+- TupleSections
+- TypeFamilyDependencies
+- UnboxedTuples
+- UndecidableInstances
+
+library:
+  source-dirs: src
+
+executables:
+  finlog-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - finlog
+
+tests:
+  finlog-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - finlog
