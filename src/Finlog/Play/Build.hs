@@ -36,7 +36,11 @@ buildAndAnalyze fileName = do
             liveness <- livenessAnalysis graph
             liftIO $ printMap liveness
             hline
-            use labelMarks >>= liftIO . printMap
+            lm <- use labelMarks
+            liftIO $ printMap lm
+            hline
+            forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) ->
+                liftIO $ putStrLn (show stmt ++ " => " ++ show (liveness HM.! lbl))
             hline
             use fwdMap >>= liftIO . printMap
             hline
