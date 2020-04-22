@@ -13,8 +13,12 @@ import           GHC.Stack
 import           Lens.Micro.Platform
 
 data Reg = Reg T.Text Unique
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Generic)
     deriving anyclass Hashable
+
+instance Ord Reg where
+    Reg name1 uniq1 `compare` Reg name2 uniq2 =
+        (uniq1 `compare` uniq2) <> (name1 `compare` name2)
 
 instance Show Reg where
     show (Reg name uniq) = "%" ++ T.unpack name ++ show uniq
@@ -23,8 +27,12 @@ freshReg :: _ => T.Text -> m Reg
 freshReg name = Reg name <$> freshUnique
 
 data IName = IName T.Text Unique
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Generic)
     deriving anyclass Hashable
+
+instance Ord IName where
+    IName name1 uniq1 `compare` IName name2 uniq2 =
+        (uniq1 `compare` uniq2) <> (name1 `compare` name2)
 
 instance Show IName where
     show (IName name uniq) = "#" ++ T.unpack name ++ show uniq

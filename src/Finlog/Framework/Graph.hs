@@ -12,8 +12,12 @@ import           GHC.Stack
 import           Lens.Micro.Platform
 
 data Label = Label T.Text Unique
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Generic)
     deriving anyclass Hashable
+
+instance Ord Label where
+    Label name1 uniq1 `compare` Label name2 uniq2 =
+        (uniq1 `compare` uniq2) <> (name1 `compare` name2)
 
 instance Show Label where
     show (Label name uniq) = T.unpack name ++ show uniq ++ ":"
@@ -116,6 +120,12 @@ emptyGraph = Graph
 
 emptyOpen :: Graph node 'O 'O
 emptyOpen = emptyGraph & residue .~ OneRes []
+
+catGraphs :: [Graph node 'O 'O] -> Graph node 'O 'O
+catGraphs = foldr (><) emptyOpen
+
+unionGraphs :: [Graph node 'C 'C] -> Graph node 'C 'C
+unionGraphs = foldr (>|<) emptyGraph
 
 mkNode :: node -> Graph node 'O 'O
 mkNode n = emptyGraph & residue .~ OneRes [n]

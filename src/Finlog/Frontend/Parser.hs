@@ -32,6 +32,10 @@ reservedNames =
     [ "proc"
     , "var"
     , "yield"
+    , "if"
+    , "else"
+    , "loop"
+    , "while"
     ]
 
 nameWord :: Parser Text
@@ -47,6 +51,9 @@ reserved res | res `notElem` reservedNames =
     error $ T.unpack res ++ " is not listed as reserved"
 reserved res = atom ("'" ++ T.unpack res ++ "'") $
     nameWord >>= guard . (== res)
+
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
 
 intTypeRaw :: Parser IntType
 intTypeRaw =
@@ -80,29 +87,37 @@ literal = IntLitL <$> intLit
 
 primary :: Parser Expr
 primary =
-    VarE <$> var
-    <|> LitE <$> literal
-    <|> between (symbol "(") (symbol ")") expr
+    varE <$> var
+    <|> litE <$> literal
+    <|> parens expr
 
 operatorTable :: [[Operator Parser Expr]]
 operatorTable =
-    [ [ InfixL (BinE Add <$ symbol "+") ]
+    [ [ InfixL (binE Add <$ symbol "+") ]
     ]
 
 expr :: Parser Expr
 expr = makeExprParser primary operatorTable
 
-stmt :: Parser Stmt
-stmt =
-    Declare
+stmtRaw :: Parser StmtRaw
+stmtRaw =
+    DeclareS
         <$ reserved "var" <*> var
         <* symbol ":" <*> typ
         <* symbol "=" <*> expr <* symbol ";"
-    <|> Assign <$> var <* symbol "=" <*> expr <* symbol ";"
-    <|> Yield <$ reserved "yield" <* symbol ";"
-    <|> Block <$> block
+    <|> AssignS <$> var <* symbol "=" <*> expr <* symbol ";"
+    <|> YieldS <$ reserved "yield" <* symbol ";"
+    <|> LoopS <$ reserved "loop" <*> block
+    <|> WhileS <$ reserved "while" <*> parens expr <*> block
+    <|> IfS
+        <$ reserved "if" <*> parens expr <*> block
+        <*> optional (reserved "else" *> block)
+    <|> BlockS <$> block
 
-block :: Parser [Stmt]
+stmt :: Parser Stmt
+stmt = Stmt <$> getSourcePos <*> stmtRaw
+
+block :: Parser StmtBlock
 block = symbol "{" *> many stmt <* symbol "}"
 
 process :: Parser Process

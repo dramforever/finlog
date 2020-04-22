@@ -132,11 +132,11 @@ instance HasItemMap (ProgState f) f where itemMap = psItemMap
 initialProgState :: ProgState f
 initialProgState = ProgState initialSupply emptyItemMap
 
-run :: State (ProgState f) a -> a
-run act = evalState act initialProgState
+-- run :: State (ProgState f) a -> a
+-- run act = evalState act initialProgState
 
-runT :: Monad m => StateT (ProgState f) m a -> m a
-runT act = evalStateT act initialProgState
+-- runT :: Monad m => StateT (ProgState f) m a -> m a
+-- runT act = evalStateT act initialProgState
 
 printMap :: _ => HM.HashMap k v -> IO ()
 printMap = mapM_ print . sortOn fst . HM.toList
