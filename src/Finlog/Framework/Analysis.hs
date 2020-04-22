@@ -6,7 +6,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.Kind
 import           Data.Maybe
-import           Debug.Trace
 import           Finlog.Framework.Graph
 import           Lens.Micro.Platform
 
@@ -129,7 +128,7 @@ generalAnalysis analysis graph = go (const bottom <$> (graph ^. blockMap))
     where
         bmap = graph ^. blockMap
 
-        go factMap = traceShow factMap $ do
+        go factMap = do
             let workBlock lbl inf = do
                     let blk@(Block _ blkf) = bmap ^?! at lbl . _Just
                         outs = finalTargets blkf

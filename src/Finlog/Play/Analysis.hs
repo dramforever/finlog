@@ -10,6 +10,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.Hashable
 import           Data.Kind
+import           Data.List
 import           Finlog.Framework.Analysis
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
@@ -133,3 +134,20 @@ initialProgState = ProgState initialSupply emptyItemMap
 
 run :: State (ProgState f) a -> a
 run act = evalState act initialProgState
+
+runT :: Monad m => StateT (ProgState f) m a -> m a
+runT act = evalStateT act initialProgState
+
+printMap :: _ => HM.HashMap k v -> IO ()
+printMap = mapM_ print . sortOn fst . HM.toList
+
+analysis :: forall m. _ => m ()
+analysis = do
+    gr <- buildGraph
+    liftIO . putStrLn $ "=== CFG ==="
+    liftIO . printMap $ gr ^. blockMap
+    liftIO . putStrLn $ "=== DAG ==="
+    use fwdMap >>= liftIO . printMap
+    (liveness :: FactMap (Liveness m)) <- backwardAnalysis gr
+    liftIO . putStrLn $ "=== Liveness ==="
+    liftIO . printMap $ liveness
