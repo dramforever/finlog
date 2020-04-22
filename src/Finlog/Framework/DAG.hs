@@ -4,7 +4,9 @@
 module Finlog.Framework.DAG where
 
 import           Control.Monad.Free
+import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet as HS
 import           Data.Hashable
 import qualified Data.Text as T
 import           Finlog.Utils.Unique
@@ -83,6 +85,9 @@ report name = use (fwdMap . at name) >>= \case
     Nothing -> error $ "report: Invalid name " ++ show name
     Just (RegItem reg) -> pure $ Pure reg
     Just (ComplexItem fn) -> Free <$> traverse report fn
+
+exprRegs :: _ => IName -> m (HS.HashSet Reg)
+exprRegs iname = HS.fromList . toList <$> report iname
 
 substitute :: (HasCallStack, _) => (Reg -> m (Free f Reg)) -> IName -> m IName
 substitute f = go

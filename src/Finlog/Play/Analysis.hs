@@ -5,7 +5,6 @@ module Finlog.Play.Analysis where
 
 import           Control.Monad.Free
 import           Control.Monad.State
-import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.Hashable
@@ -45,9 +44,6 @@ instance GraphNode (Node m) where
     finalTargets (Cond _ l1 l2) = [l1, l2]
     finalTargets (Jump l) = [l]
     finalTargets Halt = []
-
-exprRegs :: _ => IName -> m (HS.HashSet Reg)
-exprRegs iname = HS.fromList . toList <$> report iname
 
 instance (HasItemMap s f, MonadState s m, Traversable f)
     => BackFact m (Node m) (Liveness m) where

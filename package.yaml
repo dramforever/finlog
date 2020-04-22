@@ -18,13 +18,15 @@ description:         Please see the README below
 dependencies:
 - base >= 4.7 && < 5
 - derive-topdown
+- deriving-compat
 - free
 - hashable
 - megaparsec
 - microlens-platform
 - mtl
 - parser-combinators
-- primitive
+- prettyprinter
+- prettyprinter-ansi-terminal
 - text
 - unordered-containers
 

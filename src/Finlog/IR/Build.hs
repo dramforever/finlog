@@ -2,11 +2,12 @@
 module Finlog.IR.Build where
 
 import qualified Data.HashMap.Strict as HM
+import           Data.Maybe
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import           Finlog.IR.Node
-import           Finlog.Utils.Error
+import           Finlog.Utils.Mark
 import           Finlog.Utils.Unique
 import           GHC.Stack
 import           Lens.Micro.Platform
@@ -18,16 +19,17 @@ data VarInfo
     }
     deriving (Show, Eq)
 
-newtype BuildState = BuildState
+data BuildState = BuildState
     { _varMap :: HM.HashMap Var VarInfo
+    , _labelMarks :: HM.HashMap Label [Mark]
     }
-    deriving (Show, Eq)
+    deriving (Show)
 
 $(makeLenses ''VarInfo)
 $(makeClassy ''BuildState)
 
 initialBuildState :: BuildState
-initialBuildState = BuildState HM.empty
+initialBuildState = BuildState HM.empty HM.empty
 
 lookupVar :: _ => Getting a VarInfo a -> Var -> m a
 lookupVar getting var@(Var name) = use (varMap . at var) >>= \case
@@ -55,8 +57,16 @@ buildBlock stmts = do
     varMap .= origVarMap
     pure gr
 
+nonPred :: a -> (a -> Bool) -> Lens' (Maybe a) a
+nonPred x pr afb s = f <$> afb (fromMaybe x s)
+  where f y = if pr y then Nothing else Just y
+
 buildStmt :: (HasCallStack, _) => Stmt -> m (Graph (Node m) 'O 'O)
-buildStmt (Stmt pos stmt) = catchPosition pos $ buildStmtRaw stmt
+buildStmt (Stmt pos stmt) = catchMark "statement" pos $ do
+    label <- freshLabel "stmt"
+    labelMarks . at label . nonPred [] null %= (Mark "statement" pos :)
+    graph <- buildStmtRaw stmt
+    pure $ mkFinal (JumpN label) >|< mkLabel label >< graph
 
 buildStmtRaw :: (HasCallStack, _) => StmtRaw -> m (Graph (Node m) 'O 'O)
 buildStmtRaw (BlockS stmts) = buildBlock stmts

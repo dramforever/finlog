@@ -1,0 +1,22 @@
+proc main {
+    var a: u32 = 1u32;
+    var b: u32 = 2u32;
+    var c: u32 = 3u32;
+    if (a + c) {
+        a = b + c;
+    } else {
+        a = c + b;
+        c = b + (a + c);
+    }
+
+    if (c) {
+        c = a + c;
+        c = (a + c) + (a + c);
+    }
+
+    while (a + c) {
+        a = (a + c) + c;
+    }
+
+    loop {}
+}

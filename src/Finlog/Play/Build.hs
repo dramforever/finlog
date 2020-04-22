@@ -12,14 +12,15 @@ import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
+import           Finlog.IR.Analysis.Liveness
 import           Finlog.IR.Build
-import           Finlog.Utils.Error
+import           Finlog.Utils.Mark
 import           Finlog.Utils.Unique
 import           Lens.Micro.Platform
 import           Text.Megaparsec
 
-buildSomething :: _ => String -> m ()
-buildSomething fileName = do
+buildAndAnalyze :: _ => String -> m ()
+buildAndAnalyze fileName = do
     programText <- liftIO $ T.readFile fileName
     let parsed = case parse Parser.program fileName programText of
             Left err -> error $ errorBundlePretty err
@@ -28,14 +29,21 @@ buildSomething fileName = do
     case parsed of
         Program procs -> forM_ procs $ \process -> do
             (entry, graph) <- buildProcess process
+            let hline = liftIO $ T.putStrLn (T.replicate 10 "=")
             liftIO $ print entry
             liftIO $ printMap (graph ^. blockMap)
-            liftIO $ T.putStrLn (T.replicate 10 "=")
-    use fwdMap >>= liftIO . printMap
-    liftIO $ T.putStrLn (T.replicate 10 "=")
+            hline
+            liveness <- livenessAnalysis graph
+            liftIO $ printMap liveness
+            hline
+            use labelMarks >>= liftIO . printMap
+            hline
+            use fwdMap >>= liftIO . printMap
+            hline
 
 printMap :: _ => HM.HashMap k v -> IO ()
-printMap = mapM_ print . sortOn fst . HM.toList
+printMap = mapM_ printKV . sortOn fst . HM.toList
+    where printKV (k, v) = putStrLn $ show k ++ " => " ++ show v
 
 data ProgState f
     = ProgState
@@ -52,10 +60,14 @@ instance HasUniqueSupply (ProgState f) where uniqueSupply = psUniqueSupply
 instance HasItemMap (ProgState f) f where itemMap = psItemMap
 instance HasBuildState (ProgState f) where buildState = psBuildState
 
-run :: _ => ExceptT CompilerError (StateT (ProgState ExprF) m) a -> m ()
+run :: _ => ExceptT CompilerError (StateT (ProgState ExprF) m) a -> m a
 run act = evalStateT (runExceptT act) initial >>= \case
     Left err -> do
         liftIO $ putDoc (toAnsi $ prettyCompilerError err)
         liftIO $ putStrLn ""
-    Right result -> liftIO $ print result
+        error "Error occured"
+    Right result -> pure result
     where initial = ProgState initialSupply emptyItemMap initialBuildState
+
+playBuild :: IO ()
+playBuild = run (buildAndAnalyze "examples/play.finlog")

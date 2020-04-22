@@ -1,5 +1,5 @@
-module Finlog.Utils.Error
-    ( module Finlog.Utils.Error
+module Finlog.Utils.Mark
+    ( module Finlog.Utils.Mark
     , module Data.Text.Prettyprint.Doc
     ) where
 
@@ -25,23 +25,33 @@ headAnn = annotate HeadWordAnn
 posAnn = annotate PositionAnn
 codeAnn = annotate CodeAnn
 
+prettyPos :: SourcePos -> Doc Ann
+prettyPos = posAnn . pretty . T.pack . sourcePosPretty
+
+data Mark = Mark (Doc Ann) SourcePos
+
+instance Show Mark where
+    show = show . prettyMark
+
+prettyMark :: Mark -> Doc Ann
+prettyMark (Mark doc pos) = doc <> ":" <+> prettyPos pos
+
 data CompilerError
-    = CompilerError (Doc Ann) [SourcePos]
+    = CompilerError (Doc Ann) [Mark]
     deriving (Show)
 
 prettyCompilerError :: CompilerError -> Doc Ann
 prettyCompilerError (CompilerError err []) = headAnn "Error:" <+> err
-prettyCompilerError (CompilerError err pos) =
+prettyCompilerError (CompilerError err marks) =
     headAnn "Error:" <+> (align . vsep)
         [ err
-        , "at" <+> (align . vsep . map prettyPos $ reverse pos)
+        , "at" <+> (align . vsep . map prettyMark $ reverse marks)
         ]
-    where prettyPos = posAnn . pretty . T.pack . sourcePosPretty
 
 compilerError :: MonadError CompilerError m => Doc Ann -> m a
 compilerError err = throwError (CompilerError err [])
 
-catchPosition :: MonadError CompilerError m => SourcePos -> m a -> m a
-catchPosition pos act =
+catchMark :: MonadError CompilerError m => Doc Ann -> SourcePos -> m a -> m a
+catchMark doc pos act =
     act `catchError` \(CompilerError err rest) ->
-        throwError $ CompilerError err (pos : rest)
+        throwError $ CompilerError err (Mark doc pos : rest)

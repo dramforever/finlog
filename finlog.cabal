@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 24e7787f54211219e80d44a159b5ff67615bb490c7788b5f45963003b4a96973
+-- hash: a6840905362bfbd6658b1d4508919a37d2ea723ee7f6897f4ba7d43d8cb6ce9c
 
 name:           finlog
 version:        0.1.0.0
@@ -34,7 +34,12 @@ library
       Finlog.Framework.Graph
       Finlog.Frontend.AST
       Finlog.Frontend.Parser
+      Finlog.IR.Analysis.Liveness
+      Finlog.IR.Build
+      Finlog.IR.Node
       Finlog.Play.Analysis
+      Finlog.Play.Build
+      Finlog.Utils.Mark
       Finlog.Utils.Queue
       Finlog.Utils.Unique
   other-modules:
@@ -46,13 +51,15 @@ library
   build-depends:
       base >=4.7 && <5
     , derive-topdown
+    , deriving-compat
     , free
     , hashable
     , megaparsec
     , microlens-platform
     , mtl
     , parser-combinators
-    , primitive
+    , prettyprinter
+    , prettyprinter-ansi-terminal
     , text
     , unordered-containers
   default-language: Haskell2010
@@ -68,6 +75,7 @@ executable finlog-exe
   build-depends:
       base >=4.7 && <5
     , derive-topdown
+    , deriving-compat
     , finlog
     , free
     , hashable
@@ -75,7 +83,8 @@ executable finlog-exe
     , microlens-platform
     , mtl
     , parser-combinators
-    , primitive
+    , prettyprinter
+    , prettyprinter-ansi-terminal
     , text
     , unordered-containers
   default-language: Haskell2010
@@ -92,6 +101,7 @@ test-suite finlog-test
   build-depends:
       base >=4.7 && <5
     , derive-topdown
+    , deriving-compat
     , finlog
     , free
     , hashable
@@ -99,7 +109,8 @@ test-suite finlog-test
     , microlens-platform
     , mtl
     , parser-combinators
-    , primitive
+    , prettyprinter
+    , prettyprinter-ansi-terminal
     , text
     , unordered-containers
   default-language: Haskell2010
