@@ -2,6 +2,7 @@
 
 module Finlog.Framework.Analysis where
 
+import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.Kind
@@ -18,6 +19,13 @@ class FactLattice m l | l -> m where
     -- | @joinWith a b@ adds the fact @b@ to @a@, and returns @Just newFact@ if
     -- something changed, and @Nothing@ if not.
     joinWith :: JoinFunction m l
+
+joinFacts :: (FactLattice m l, Monad m) => [l] -> m l
+joinFacts = foldlM go bottom
+    where
+        go a b = a `joinWith` b >>= \case
+            Nothing -> pure a
+            Just new -> pure new
 
 data NullFact (m :: Type -> Type) node = NullFact
     deriving (Show)
@@ -120,7 +128,7 @@ updateMulti = go False
             let orig = fromMaybe bottom (mapl ^. at lbl)
             in orig `joinWith` l >>= \case
                 Just newl ->
-                    traceShow ("Update", lbl, orig, l, newl) $
+                    -- traceShow ("Update", lbl, orig, l, newl) $
                     go (flag || True) (HM.insert lbl newl mapl) ls
                 Nothing -> go flag mapl ls
 
@@ -135,7 +143,12 @@ generalAnalysis analysis graph = go (const bottom <$> (graph ^. blockMap))
         bmap = graph ^. blockMap
 
         go factMap = do
-            -- traceShowM ("Facts", factMap)
+            -- traceM ""
+            -- traceM "=== Facts ==="
+            -- for_ (HM.toList factMap) $ \(k, v) ->
+            --     traceM $ "  " ++ show k ++ " => " ++ show v
+            -- traceM "============="
+            -- traceM ""
             let workBlock lbl inf = do
                     let blk@(Block _ blkf) = bmap ^?! at lbl . _Just
                         outs = finalTargets blkf

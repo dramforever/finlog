@@ -60,11 +60,33 @@ loop :: (HasCallStack, _) => Graph (Node m) 'O 'O -> m (Label, Graph (Node m) 'C
 loop gr = (\lbl -> (lbl, mkLoop lbl)) <$> freshLabelMark "loop"
     where mkLoop lbl = mkLabel lbl >< gr >< mkFinal (JumpN lbl)
 
-buildProcess :: (HasCallStack, _) => Process -> m (Label, Graph (Node m) 'C 'C)
+data ProcessBuild m
+    = ProcessBuild
+    { _pbGraph :: Graph (Node m) 'C 'C
+    , _pbEntry :: Label
+    , _pbResetId :: YieldId
+    }
+    deriving (Show)
+
+$(makeLenses ''ProcessBuild)
+
+buildProcess :: (HasCallStack, _) => Process -> m (ProcessBuild m)
 buildProcess (Process (Var name) stmts) = do
     entry <- freshLabelMark $ "entry_" <> name
+    resetId <- freshYieldId
+    yieldLabels . at resetId ?= entry
+
     graph <- buildBlock stmts
-    pure $ (entry, mkLabel entry >< graph >< mkFinal UndefinedN)
+    let graph' = mkLabel entry
+            >< mkNode (YieldN resetId)
+            >< graph
+            >< mkFinal UndefinedN
+
+    pure $ ProcessBuild
+        { _pbGraph = graph'
+        , _pbEntry = entry
+        , _pbResetId = resetId
+        }
 
 buildBlock :: (HasCallStack, _) => StmtBlock -> m (Graph (Node m) 'O 'O)
 buildBlock stmts = do
@@ -104,6 +126,7 @@ buildStmtRaw YieldS = do
     lbl <- freshLabelMark "yield"
     yieldLabels . at yid ?= lbl
     pure $ mkFinal (JumpN lbl) >|< mkLabel lbl >< mkNode (YieldN yid)
+
 buildStmtRaw (LoopS body) = do
     unreachable <- freshLabelMark "unreachable"
     (loopLabel, loopGraph) <- buildBlock body >>= loop
