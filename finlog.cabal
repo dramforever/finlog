@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dc086fdd4fb2bfde2667f734826762ace06775b6578958755775815285def653
+-- hash: 30fdd7374fa20055ad09f352a6c4685a4f25c45ed743a0a4093211ddbacd3263
 
 name:           finlog
 version:        0.1.0.0
@@ -30,11 +30,13 @@ source-repository head
 library
   exposed-modules:
       Finlog.Framework.Analysis
+      Finlog.Framework.Analysis.Utils
       Finlog.Framework.DAG
       Finlog.Framework.Graph
       Finlog.Frontend.AST
       Finlog.Frontend.Parser
       Finlog.IR.Analysis.Liveness
+      Finlog.IR.Analysis.Symbolic
       Finlog.IR.Build
       Finlog.IR.Node
       Finlog.Play.Build
@@ -45,7 +47,7 @@ library
       Paths_finlog
   hs-source-dirs:
       src
-  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures PatternSynonyms RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
   ghc-options: -Wall -Wno-partial-type-signatures
   build-depends:
       base >=4.7 && <5
@@ -69,7 +71,7 @@ executable finlog-exe
       Paths_finlog
   hs-source-dirs:
       app
-  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures PatternSynonyms RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
   ghc-options: -Wall -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -95,7 +97,7 @@ test-suite finlog-test
       Paths_finlog
   hs-source-dirs:
       test
-  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
+  default-extensions: ConstraintKinds DataKinds DeriveGeneric DeriveTraversable DerivingStrategies FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoStarIsType OverloadedStrings PartialTypeSignatures PatternSynonyms RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilyDependencies UnboxedTuples UndecidableInstances
   ghc-options: -Wall -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5

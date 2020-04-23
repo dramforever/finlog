@@ -50,6 +50,7 @@ default-extensions:
 - NoStarIsType
 - OverloadedStrings
 - PartialTypeSignatures
+- PatternSynonyms
 - RankNTypes
 - ScopedTypeVariables
 - StandaloneDeriving

@@ -6,17 +6,21 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.Kind
 import           Data.Maybe
+import           Debug.Trace
 import           Finlog.Framework.Graph
 import           Lens.Micro.Platform
+
+type JoinFunction m l = l -> l -> m (Maybe l)
 
 class FactLattice m l | l -> m where
     bottom :: l
 
     -- | @joinWith a b@ adds the fact @b@ to @a@, and returns @Just newFact@ if
     -- something changed, and @Nothing@ if not.
-    joinWith :: l -> l -> m (Maybe l)
+    joinWith :: JoinFunction m l
 
 data NullFact (m :: Type -> Type) node = NullFact
+    deriving (Show)
 
 instance Applicative m => FactLattice m (NullFact m node) where
     bottom = NullFact
@@ -115,7 +119,9 @@ updateMulti = go False
         go flag mapl ((lbl, l) : ls) =
             let orig = fromMaybe bottom (mapl ^. at lbl)
             in orig `joinWith` l >>= \case
-                Just newl -> go (flag || True) (HM.insert lbl newl mapl) ls
+                Just newl ->
+                    traceShow ("Update", lbl, orig, l, newl) $
+                    go (flag || True) (HM.insert lbl newl mapl) ls
                 Nothing -> go flag mapl ls
 
 type Analysis m node l = Label -> Block node -> l -> FactMap l -> m (FactMap l)
@@ -129,6 +135,7 @@ generalAnalysis analysis graph = go (const bottom <$> (graph ^. blockMap))
         bmap = graph ^. blockMap
 
         go factMap = do
+            -- traceShowM ("Facts", factMap)
             let workBlock lbl inf = do
                     let blk@(Block _ blkf) = bmap ^?! at lbl . _Just
                         outs = finalTargets blkf

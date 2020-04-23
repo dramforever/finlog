@@ -67,8 +67,8 @@ deriving instance Eq (f IName) => Eq (ItemMap f)
 emptyItemMap :: ItemMap f
 emptyItemMap = ItemMap HM.empty HM.empty
 
-registerItem :: _ => Item f -> m IName
-registerItem item = use (revMap . at item) >>= \case
+recordItem :: _ => Item f -> m IName
+recordItem item = use (revMap . at item) >>= \case
     Just name -> pure name
     Nothing -> do
         name <- freshIName ""
@@ -76,9 +76,15 @@ registerItem item = use (revMap . at item) >>= \case
         revMap . at item ?= name
         pure name
 
+recordPartial :: _ => Free f IName -> m IName
+recordPartial (Pure r) = pure r
+recordPartial (Free f) = traverse recordPartial f >>= recordItem . ComplexItem
+
+recordReg :: _ => Reg -> m IName
+recordReg = recordItem . RegItem
+
 record :: _ => Free f Reg -> m IName
-record (Pure r) = registerItem (RegItem r)
-record (Free f) = traverse record f >>= registerItem . ComplexItem
+record freg = traverse recordReg freg >>= recordPartial
 
 report :: (HasCallStack, _) => IName -> m (Free f Reg)
 report name = use (fwdMap . at name) >>= \case
@@ -88,15 +94,6 @@ report name = use (fwdMap . at name) >>= \case
 
 exprRegs :: _ => IName -> m (HS.HashSet Reg)
 exprRegs iname = HS.fromList . toList <$> report iname
-
-substitute :: (HasCallStack, _) => (Reg -> m (Free f Reg)) -> IName -> m IName
-substitute f = go
-    where
-        go name = use (fwdMap . at name) >>= \case
-            Nothing -> error $ "substitute: Invalid name " ++ show name
-            Just (RegItem reg) -> f reg >>= record
-            Just (ComplexItem fn) ->
-                traverse go fn >>= registerItem . ComplexItem
 
 -- Avoid Template Haskell to speed up compilation
 

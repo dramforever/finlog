@@ -39,6 +39,7 @@ deriving instance ShowNode node => Show (Block node)
 data Half node = Half !Label [node]
     deriving (Show, Eq)
 
+-- Open or closed
 data Shape = O | C
 
 data MaybeO (sh :: Shape) (a :: Type) where

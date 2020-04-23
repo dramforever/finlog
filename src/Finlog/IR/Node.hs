@@ -1,13 +1,23 @@
 module Finlog.IR.Node where
 
+import Data.Hashable
 import Data.Kind
 import Finlog.Framework.DAG
 import Finlog.Framework.Graph
 import Finlog.Utils.Unique
 
+newtype YieldId = YieldId Unique
+    deriving newtype (Eq, Ord, Hashable)
+
+instance Show YieldId where
+    show (YieldId uniq) = "[y]" ++ show uniq
+
+freshYieldId :: _ => m YieldId
+freshYieldId = YieldId <$> freshUnique
+
 data Node (m :: Type -> Type)
     = StoreN Reg IName
-    | YieldN Unique
+    | YieldN YieldId
     deriving (Show, Eq)
 
 data FinalNode (m :: Type -> Type)

@@ -51,7 +51,7 @@ prettyCompilerError (CompilerError err marks) =
 compilerError :: MonadError CompilerError m => Doc Ann -> m a
 compilerError err = throwError (CompilerError err [])
 
-catchMark :: MonadError CompilerError m => Doc Ann -> SourcePos -> m a -> m a
-catchMark doc pos act =
+catchMark :: MonadError CompilerError m => Mark -> m a -> m a
+catchMark mark act =
     act `catchError` \(CompilerError err rest) ->
-        throwError $ CompilerError err (Mark doc pos : rest)
+        throwError $ CompilerError err (mark : rest)

@@ -13,6 +13,7 @@ import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
 import           Finlog.IR.Analysis.Liveness
+import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
 import           Finlog.Utils.Unique
@@ -36,8 +37,14 @@ buildAndAnalyze fileName = do
             liveness <- livenessAnalysis graph
             liftIO $ printMap liveness
             hline
+            symbolic <- symbolicAnalysis graph
+            liftIO $ printMap symbolic
+            hline
             lm <- use labelMarks
             liftIO $ printMap lm
+            hline
+            ym <- use yieldLabels
+            liftIO $ printMap ym
             hline
             forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) ->
                 liftIO $ putStrLn (show stmt ++ " => " ++ show (liveness HM.! lbl))
