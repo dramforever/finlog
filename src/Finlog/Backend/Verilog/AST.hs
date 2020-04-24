@@ -14,7 +14,7 @@ newtype Verilog = Verilog [Module]
 data Module = Module VerilogVar [VerilogVar] [Decl]
 
 data Decl
-    = DirDecl Dir VerilogVar
+    = DirDecl Dir Typ VerilogVar
     | TypeDecl Net Typ VerilogVar
     | Assign Expr Expr
     | Always Trigger Stmt

@@ -31,7 +31,8 @@ genModule (Module name vars body) = vsep
     ]
 
 genDecl :: Decl -> Doc ann
-genDecl (DirDecl dir name) = genDir dir <+> genVar name <> ";"
+genDecl (DirDecl dir typ name) =
+    genDir dir <+> genType typ <+> genVar name <> ";"
 genDecl (TypeDecl net typ name) =
     genNet net <+> genType typ <+> genVar name <> ";"
 genDecl (Assign dst expr) =

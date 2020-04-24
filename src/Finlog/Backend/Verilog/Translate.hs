@@ -130,10 +130,8 @@ generateGate tin =
 generateDecls :: T.Text -> TranslationInput -> V.Module
 generateDecls name tin =
     V.Module (V.VerilogVar name) ["clk", "rst"] $
-        [ V.DirDecl V.Input "clk"
-        , V.TypeDecl V.Wire V.Bit "clk"
-        , V.DirDecl V.Input "rst"
-        , V.TypeDecl V.Wire V.Bit "rst"
+        [ V.DirDecl V.Input V.Bit "clk"
+        , V.DirDecl V.Input V.Bit "rst"
         ]
         ++ generateRegs tin
         ++ generateMatrix tin

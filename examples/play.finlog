@@ -1,9 +1,17 @@
-// This is the input source
-
 proc main {
-    var a : u32 = 0u32;
+    var counter: u32 = 0u32;
+    var a: u32 = 1u32;
+    var out: u32 = 0u32;
     loop {
-        a = a + 1u32;
+        var b: u32 = a + a;
+        var c: u32 = b + b;
+        a = a + b + c;
+
+        counter = counter + 1u32;
+
+        out = counter;
+        yield;
+        out = a;
         yield;
     }
 }
