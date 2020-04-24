@@ -19,6 +19,7 @@ data TranslationInput
     , _tiYieldIdSet :: HS.HashSet YieldId
     , _tiResetId :: YieldId
     , _tiFwdMap :: HM.HashMap IName (Item ExprF)
+    , _tiRegTypeMap :: HM.HashMap Reg Typ
     , _tiItemTypeMap :: HM.HashMap IName Typ
     }
     deriving (Show)
@@ -52,7 +53,7 @@ mkINameD iname typ = V.TypeDecl V.Wire (mkTyp typ) (mkIName iname)
 
 mkItem :: (IName, Typ, Item ExprF) -> ([V.Decl], [V.Decl])
 mkItem (iname, typ, RegItem reg) =
-    ( [mkRegD reg typ, mkINameD iname typ]
+    ( [mkINameD iname typ]
     , [V.Assign (V.VarE $ mkIName iname) (V.VarE $ mkReg reg)]
     )
 
@@ -71,6 +72,12 @@ mkExprF (CondE cond t e) = V.CondE cond t e
 
 mkBinOp :: BinOp -> V.BinOp
 mkBinOp Add = V.Add
+
+generateRegs :: TranslationInput -> [V.Decl]
+generateRegs tin =
+    let regList = sortOn fst . HM.toList $ tin ^. tiRegTypeMap
+        go (reg, typ) = V.TypeDecl V.Reg (mkTyp typ) (mkReg reg)
+    in go <$> regList
 
 generateMatrix :: TranslationInput -> [V.Decl]
 generateMatrix tin =
@@ -128,4 +135,6 @@ generateDecls name tin =
         , V.DirDecl V.Input "rst"
         , V.TypeDecl V.Wire V.Bit "rst"
         ]
-        ++ generateMatrix tin ++ generateGate tin
+        ++ generateRegs tin
+        ++ generateMatrix tin
+        ++ generateGate tin

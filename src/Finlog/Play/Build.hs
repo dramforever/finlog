@@ -84,6 +84,7 @@ buildAndAnalyze fileName = do
                 liftIO . putStrLn $ "    = " ++ showCleanFree expr
             hline
 
+            rtym <- use regTypeMap
             itym <- use inameTypeMap
 
             let tin = TranslationInput
@@ -91,6 +92,7 @@ buildAndAnalyze fileName = do
                     , _tiYieldIdSet = HS.fromMap (() <$ build ^. pbYieldLabels)
                     , _tiResetId = build ^. pbResetId
                     , _tiFwdMap = fm
+                    , _tiRegTypeMap = rtym
                     , _tiItemTypeMap = itym
                     }
 
