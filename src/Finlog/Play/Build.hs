@@ -15,7 +15,6 @@ import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
 import           Finlog.IR.Analysis.Liveness
-import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
 import           Finlog.Utils.Pretty
@@ -55,31 +54,12 @@ buildAndAnalyze fileName = do
                 liftIO $ putStrLn (show (listToMaybe stmt) ++ " => " ++ show (liveness HM.! lbl))
             hline
 
-            liftIO $ T.putStrLn (T.replicate 3 "\n")
-            liftIO $ putStrLn "=== Symbolic ==="
-            symbolic <- symbolicAnalysis graph
-            liftIO $ prettyMap symbolic
-            hline
-            forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) -> do
-                liftIO . putStrLn $ show (listToMaybe stmt) ++ " => "
-                liftIO $ print . pretty $ symbolic HM.! lbl
-            hline
-
             ks <- HM.keys <$> use fwdMap
             forM_ ks $ \k -> do
                 expr <- report k
                 liftIO . putStrLn $ show k ++ " => " ++ showCleanFree expr
             hline
 
-            yls <- use yieldLabels
-            let mk yid lbl =
-                    case symbolic HM.! lbl of
-                        Symbolic sym -> Symbolic $ sym
-                            & traversed . traversed . symState . ssYield .~ YieldYT yid
-                            & traversed . traversed . symBranches . traversed . ssYield .~ YieldYT yid
-            f <- joinFacts $ uncurry mk <$> HM.toList yls
-            liftIO . print . pretty $ f
-            hline
 
 printMap :: _ => HM.HashMap k v -> IO ()
 printMap = mapM_ printKV . sortOn fst . HM.toList

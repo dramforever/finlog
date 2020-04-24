@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 852a287c6c26f96effeca82bb3cee2ab3ed4ad2ac7548b297db8adec654f2082
+-- hash: 206e6f44f8286198249c023889cd5c6bd616429d9b14a29a22d927cdabcfc93d
 
 name:           finlog
 version:        0.1.0.0
@@ -36,7 +36,6 @@ library
       Finlog.Frontend.AST
       Finlog.Frontend.Parser
       Finlog.IR.Analysis.Liveness
-      Finlog.IR.Analysis.Symbolic
       Finlog.IR.Build
       Finlog.IR.Node
       Finlog.Play.Build
