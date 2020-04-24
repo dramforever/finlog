@@ -9,8 +9,9 @@ module Finlog.Utils.Queue
     , pop
     ) where
 
-import Data.Traversable
-import GHC.Exts
+import qualified Data.Foldable as Foldable
+import           Data.Traversable
+import           GHC.Exts
 
 data Queue a = Queue [a] [a]
 
@@ -18,10 +19,10 @@ instance IsList (Queue a) where
     type Item (Queue a) = a
 
     fromList = listQueue
-    toList = toList -- From Foldable
+    toList = Foldable.toList
 
 instance Show a => Show (Queue a) where
-    show q = "fromList " ++ show (toList q)
+    show q = "fromList " ++ show (Foldable.toList q)
 
 instance Traversable Queue where
     traverse f (Queue outs ins) =

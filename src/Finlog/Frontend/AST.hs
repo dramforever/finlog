@@ -67,15 +67,19 @@ instance Show BinOp where
     show Add = "+"
 
 instance Show1 ExprF where
-    liftShowsPrec sp _ p exprf = showParen (p > 10) $ case exprf of
+    liftShowsPrec sp _ p exprf = case exprf of
         LitE lit -> shows lit
-        BinE op lhs rhs -> sp 10 lhs . ss " " . shows op . ss " " . sp 10 rhs
-        CondE cond t e ->
+        BinE op lhs rhs -> showParen (p > 10) $
+            sp 10 lhs . ss " " . shows op . ss " " . sp 10 rhs
+        CondE cond t e -> showParen (p > 10) $
             ss "if " . sp 10 cond
             . ss " then " . sp 10 t
             . ss " else " . sp 10 e
         where
             ss = showString
+
+instance Show a => Show (ExprF a) where
+    showsPrec p a = liftShowsPrec showsPrec showList p a
 
 $(deriveEq1 ''ExprF)
 $(derivings [''Show, ''Eq] ''Program)

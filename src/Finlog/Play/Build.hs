@@ -9,12 +9,12 @@ import           Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import           Data.Text.Prettyprint.Doc.Render.Terminal
-import           Finlog.Framework.Analysis
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
 import           Finlog.IR.Analysis.Liveness
+import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
 import           Finlog.Utils.Pretty
@@ -34,32 +34,44 @@ buildAndAnalyze fileName = do
             build <- buildProcess process
             let entry = build ^. pbEntry
                 graph = build ^. pbGraph
-            let hline = liftIO $ T.putStrLn (T.replicate 10 "=")
+            let hline = liftIO $ T.putStrLn (T.replicate 40 "=")
             liftIO $ print entry
             liftIO $ printMap (graph ^. blockMap)
             hline
             lm <- use labelMarks
             liftIO $ printMap lm
             hline
-            ym <- use yieldLabels
-            liftIO $ printMap ym
+
+            -- liftIO $ putStrLn "=== Liveness ==="
+            -- liveness <- livenessAnalysis graph
+            -- liftIO $ printMap liveness
+            -- hline
+            -- forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) ->
+            --     liftIO $ putStrLn (show (listToMaybe stmt) ++ " => " ++ show (liveness HM.! lbl))
+            -- hline
+
+            liftIO $ putStrLn "=== Symbolic ==="
+            symbolic <- symbolicAnalysis build
+            -- liftIO . printMap $ symbolic
+            -- hline
+            HM.toList (build ^. pbYieldLabels) `forM_` \(yid, lbl) ->
+                let ysym = HM.lookupDefault HM.empty lbl symbolic
+                    ysym' = ysym & traversed . ssYield .~ (YieldYT yid)
+                in liftIO . print $ (yid, lbl, ysym')
+            hline
+            let recode (yid, lbl) =
+                    HM.lookupDefault HM.empty lbl symbolic
+                    & traversed . ssYield .~ YieldYT yid
+            merged <- foldM mergeSymMap HM.empty . map recode $ HM.toList (build ^. pbYieldLabels)
+            liftIO . printMap $ merged
             hline
 
-            liftIO $ T.putStrLn (T.replicate 3 "\n")
-            liftIO $ putStrLn "=== Liveness ==="
-            liveness <- livenessAnalysis graph
-            liftIO $ printMap liveness
-            hline
-            forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) ->
-                liftIO $ putStrLn (show (listToMaybe stmt) ++ " => " ++ show (liveness HM.! lbl))
-            hline
-
-            ks <- HM.keys <$> use fwdMap
-            forM_ ks $ \k -> do
+            fm <- HM.toList <$> use fwdMap
+            sortOn fst fm `forM_` \(k, v) -> do
+                liftIO . putStrLn $ show k ++ " => " ++ show v
                 expr <- report k
-                liftIO . putStrLn $ show k ++ " => " ++ showCleanFree expr
+                liftIO . putStrLn $ "    = " ++ showCleanFree expr
             hline
-
 
 printMap :: _ => HM.HashMap k v -> IO ()
 printMap = mapM_ printKV . sortOn fst . HM.toList

@@ -4,12 +4,12 @@ proc main {
     var c: u32 = 3u32;
     loop {
         if (a + c) {
-            a = a + b;
+            a = a + 1u32;
             yield;
         }
 
-        while (a) {
-            a = a + c;
+        if (a + c) {
+            a = a + 1u32;
         }
 
         yield;

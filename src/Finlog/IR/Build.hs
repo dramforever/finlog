@@ -23,6 +23,7 @@ data BuildState = BuildState
     { _varMap :: HM.HashMap Var VarInfo
     , _labelMarks :: HM.HashMap Label [Mark]
     , _yieldLabels :: HM.HashMap YieldId Label
+    , _yieldPostLabels :: HM.HashMap YieldId Label
     , _markStack :: [Mark]
     }
     deriving (Show)
@@ -45,7 +46,7 @@ freshLabelMark name = do
     pure label
 
 initialBuildState :: BuildState
-initialBuildState = BuildState HM.empty HM.empty HM.empty []
+initialBuildState = BuildState HM.empty HM.empty HM.empty HM.empty []
 
 lookupVar :: _ => Getting a VarInfo a -> Var -> m a
 lookupVar getting var@(Var name) = use (varMap . at var) >>= \case
@@ -65,6 +66,8 @@ data ProcessBuild m
     { _pbGraph :: Graph (Node m) 'C 'C
     , _pbEntry :: Label
     , _pbResetId :: YieldId
+    , _pbYieldLabels :: HM.HashMap YieldId Label
+    , _pbYieldPostLabels :: HM.HashMap YieldId Label
     }
     deriving (Show)
 
@@ -72,20 +75,34 @@ $(makeLenses ''ProcessBuild)
 
 buildProcess :: (HasCallStack, _) => Process -> m (ProcessBuild m)
 buildProcess (Process (Var name) stmts) = do
+    oldYieldLabels <- use yieldLabels
+    oldYieldPostLabels <- use yieldPostLabels
+
     entry <- freshLabelMark $ "entry_" <> name
+    entryPost <- freshLabelMark $ "entrypost_" <> name
     resetId <- freshYieldId
     yieldLabels . at resetId ?= entry
+    yieldPostLabels . at resetId ?= entryPost
 
     graph <- buildBlock stmts
     let graph' = mkLabel entry
             >< mkNode (YieldN resetId)
+            >< mkFinal (JumpN entryPost)
+            >|< mkLabel entryPost
             >< graph
             >< mkFinal UndefinedN
+
+    yl <- use yieldLabels
+    ypol <- use yieldPostLabels
+    yieldLabels .= oldYieldLabels
+    yieldPostLabels .= oldYieldPostLabels
 
     pure $ ProcessBuild
         { _pbGraph = graph'
         , _pbEntry = entry
         , _pbResetId = resetId
+        , _pbYieldLabels = yl
+        , _pbYieldPostLabels = ypol
         }
 
 buildBlock :: (HasCallStack, _) => StmtBlock -> m (Graph (Node m) 'O 'O)
@@ -124,8 +141,13 @@ buildStmtRaw (AssignS var expr) = do
 buildStmtRaw YieldS = do
     yid <- freshYieldId
     lbl <- freshLabelMark "yield"
+    lblPost <- freshLabelMark "yieldpost"
     yieldLabels . at yid ?= lbl
-    pure $ mkFinal (JumpN lbl) >|< mkLabel lbl >< mkNode (YieldN yid)
+    yieldPostLabels . at yid ?= lblPost
+    pure $
+        mkFinal (JumpN lbl)
+        >|< mkLabel lbl >< mkNode (YieldN yid) >< mkFinal (JumpN lblPost)
+        >|< mkLabel lblPost
 
 buildStmtRaw (LoopS body) = do
     unreachable <- freshLabelMark "unreachable"

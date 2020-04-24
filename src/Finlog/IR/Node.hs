@@ -10,7 +10,7 @@ newtype YieldId = YieldId Unique
     deriving newtype (Eq, Ord, Hashable)
 
 instance Show YieldId where
-    show (YieldId uniq) = "yield" ++ show uniq
+    show (YieldId uniq) = "[yield]" ++ show uniq
 
 freshYieldId :: _ => m YieldId
 freshYieldId = YieldId <$> freshUnique
