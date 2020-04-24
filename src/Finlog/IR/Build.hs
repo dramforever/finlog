@@ -1,12 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Finlog.IR.Build where
 
+import           Control.Monad
 import qualified Data.HashMap.Strict as HM
 import           Data.Maybe
 import qualified Data.Text as T
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
+import           Finlog.Frontend.Type
 import           Finlog.IR.Node
 import           Finlog.Utils.Mark
 import           GHC.Stack
@@ -46,7 +48,14 @@ freshLabelMark name = do
     pure label
 
 initialBuildState :: BuildState
-initialBuildState = BuildState HM.empty HM.empty HM.empty HM.empty []
+initialBuildState =
+    BuildState
+    { _varMap = HM.empty
+    , _labelMarks = HM.empty
+    , _yieldLabels = HM.empty
+    , _yieldPostLabels = HM.empty
+    , _markStack = []
+    }
 
 lookupVar :: _ => Getting a VarInfo a -> Var -> m a
 lookupVar getting var@(Var name) = use (varMap . at var) >>= \case
@@ -123,20 +132,34 @@ buildStmt (Stmt pos stmt) = withMark (Mark "statement" pos) $ do
     graph <- buildStmtRaw stmt
     pure $ mkFinal (JumpN label) >|< mkLabel label >< graph
 
+checkAssignable :: _ => Typ -> Typ -> m ()
+checkAssignable dst src =
+    unless (assignable dst src)
+        (compilerError $
+            "Type" <+> codeAnn (viaShow src)
+            <+> "not assignable to" <+> codeAnn (viaShow dst))
+
+
 buildStmtRaw :: (HasCallStack, _) => StmtRaw -> m (Graph (Node m) 'O 'O)
 buildStmtRaw (BlockS stmts) = buildBlock stmts
 buildStmtRaw (DeclareS var@(Var name) typ initial) = do
     reg <- freshReg name
+    regType reg ?= typ
     let info = VarInfo
             { _varReg = reg
             , _varType = typ
             }
     varMap . at var ?= info
     initialName <- recordLookup initial
+    initialType <- infer initialName
+    checkAssignable typ initialType
     pure $ mkNode (StoreN reg initialName)
 buildStmtRaw (AssignS var expr) = do
     reg <- lookupVar varReg var
+    rType <- fromJust <$> use (regType reg)
     exprName <- recordLookup expr
+    exprType <- infer exprName
+    checkAssignable rType exprType
     pure $ mkNode (StoreN reg exprName)
 buildStmtRaw YieldS = do
     yid <- freshYieldId

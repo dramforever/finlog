@@ -11,21 +11,33 @@ newtype VerilogVar = VerilogVar T.Text
 
 newtype Verilog = Verilog [Module]
 
-data Module = Module VerilogVar [VerilogVar] [Statement]
+data Module = Module VerilogVar [VerilogVar] [Decl]
 
-data Statement
+data Decl
     = DirDecl Dir VerilogVar
     | TypeDecl Net Typ VerilogVar
-    | Assign VerilogVar Expr
-    | Always Trigger VerilogVar VerilogVar
+    | Assign Expr Expr
+    | Always Trigger Stmt
+
+data Stmt
+    = Block [Stmt]
+    | Expr :=: Expr
+    | Expr :<=: Expr
+    | If Expr Stmt (Maybe Stmt)
+    | Case Expr [(Literal, Stmt)]
+    | Comment T.Text
 
 data Expr
-    = LitE Literal
-    | BinE BinOp VerilogVar VerilogVar
+    = VarE VerilogVar
+    | LitE Literal
+    | BinE BinOp Expr Expr
+    | CondE Expr Expr Expr
 
 data Literal = Literal Integer Typ
 
-data Trigger = Trigger Edge VerilogVar
+data Trigger
+    = Trigger Edge VerilogVar
+    | StarTrigger
 
 data Net = Wire | Reg
 data Dir = Input | Output

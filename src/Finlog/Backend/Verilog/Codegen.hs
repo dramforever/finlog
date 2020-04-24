@@ -26,25 +26,54 @@ genModule (Module name vars body) = vsep
         , hsep . punctuate "," $ genVar <$> vars
         , ")" <> ";"
         ]
-    , indent 4 . vsep $ genStatement <$> body
+    , indent 4 . vsep $ genDecl <$> body
     , "endmodule"
     ]
 
-genStatement :: Statement -> Doc ann
-genStatement (DirDecl dir name) = genDir dir <+> genVar name <> ";"
-genStatement (TypeDecl net typ name) =
+genDecl :: Decl -> Doc ann
+genDecl (DirDecl dir name) = genDir dir <+> genVar name <> ";"
+genDecl (TypeDecl net typ name) =
     genNet net <+> genType typ <+> genVar name <> ";"
-genStatement (Assign dst expr) =
-    "assign" <+> genVar dst <+> "=" <+> genExpr expr <> ";"
-genStatement (Always trigger dst src) = vsep
+genDecl (Assign dst expr) =
+    "assign" <+> genExpr dst <+> "=" <+> genExpr expr <> ";"
+genDecl (Always trigger stmt) = vsep
     [ "always" <+> genTrigger trigger
-    , indent 4 $ genVar dst <+> "<=" <+> genVar src <> ";"
+    , indent 4 $ genStmt stmt
     ]
 
+genStmt :: Stmt -> Doc ann
+genStmt (Block stmts) = vsep
+    ["begin", indent 4 . vsep $ genStmt <$> stmts, "end"]
+genStmt (dst :=: expr) =
+    genExpr dst <+> "=" <+> genExpr expr <> ";"
+genStmt (dst :<=: expr) =
+    genExpr dst <+> "<=" <+> genExpr expr <> ";"
+genStmt (If cond t Nothing) =
+    "if" <+> parens (genExpr cond)
+        <+> genStmt t
+        <+> "else" <+> "begin" <+> "end" -- Avoid ambiguity
+genStmt (If cond t (Just e)) =
+    "if" <+> parens (genExpr cond)
+        <+> genStmt t
+        <+> "else" <+> genStmt e
+genStmt (Case scrut brs) = vsep
+    [ "case" <+> parens (genExpr scrut)
+    , indent 4 . vsep $ genBranch <$> brs
+    , "endcase"
+    ]
+    where
+        genBranch (lit, stmt) =
+            genLiteral lit <> ":" <+> genStmt stmt
+genStmt (Comment cmt) = vsep $ go <$> T.lines cmt
+    where go l = "//" <+> pretty l
+
 genExpr :: Expr -> Doc ann
+genExpr (VarE var) = genVar var
 genExpr (LitE literal) = genLiteral literal
 genExpr (BinE op lhs rhs) =
-    parens $ genVar lhs <+> genBinOp op <+> genVar rhs
+    parens $ genExpr lhs <+> genBinOp op <+> genExpr rhs
+genExpr (CondE cond t e) =
+    parens $ genExpr cond <+> "?" <+> genExpr t <+> ":" <+> genExpr e
 
 genLiteral :: Literal -> Doc ann
 genLiteral (Literal i Bit) =
@@ -59,9 +88,9 @@ genLiteral (Literal i0 (Signed s))
     | i0 < 0 = "-" <> viaShow s <> "'" <> "sd" <> viaShow (- i0)
     | otherwise = viaShow s <> "'" <> "sd" <> viaShow i0
 
-
 genTrigger :: Trigger -> Doc ann
 genTrigger (Trigger edge var) = "@" <> parens (genEdge edge <+> genVar var)
+genTrigger StarTrigger = "@" <> parens "*"
 
 genNet :: Net -> Doc ann
 genNet Wire = "wire"

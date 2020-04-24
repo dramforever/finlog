@@ -124,4 +124,4 @@ process :: Parser Process
 process = Process <$ reserved "proc" <*> var <*> block
 
 program :: Parser Program
-program = Program <$> many process <* eof
+program = Program <$ sc <*> many process <* eof

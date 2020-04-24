@@ -28,19 +28,15 @@ instance Show Reg where
 freshReg :: _ => T.Text -> m Reg
 freshReg name = Reg name <$> freshUnique
 
-data IName = IName T.Text Unique
-    deriving (Eq, Generic)
+data IName = IName Unique
+    deriving (Eq, Ord, Generic)
     deriving anyclass Hashable
 
-instance Ord IName where
-    IName name1 uniq1 `compare` IName name2 uniq2 =
-        (uniq1 `compare` uniq2) <> (name1 `compare` name2)
-
 instance Show IName where
-    show (IName name uniq) = "#" ++ T.unpack name ++ show uniq
+    show (IName uniq) = "#" ++ show uniq
 
-freshIName :: _ => T.Text -> m IName
-freshIName name = IName name <$> freshUnique
+freshIName :: _ => m IName
+freshIName = IName <$> freshUnique
 
 data Item f
     = RegItem Reg
@@ -71,7 +67,7 @@ recordItem :: _ => Item f -> m IName
 recordItem item = use (revMap . at item) >>= \case
     Just name -> pure name
     Nothing -> do
-        name <- freshIName ""
+        name <- freshIName
         fwdMap . at name ?= item
         revMap . at item ?= name
         pure name

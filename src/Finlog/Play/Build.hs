@@ -4,16 +4,18 @@ module Finlog.Play.Build where
 import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet as HS
 import           Data.List
-import           Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import           Data.Text.Prettyprint.Doc.Render.Terminal
+import           Finlog.Backend.Verilog.Codegen
+import           Finlog.Backend.Verilog.Translate
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
-import           Finlog.IR.Analysis.Liveness
+import           Finlog.Frontend.Type
 import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
@@ -30,14 +32,16 @@ buildAndAnalyze fileName = do
             Right result -> result
     use fwdMap >>= liftIO . printMap
     case parsed of
-        Program procs -> forM_ procs $ \process -> do
+        Program procs -> forM_ procs $ \process@(Process (Var name) _) -> do
             build <- buildProcess process
             let entry = build ^. pbEntry
                 graph = build ^. pbGraph
-            let hline = liftIO $ T.putStrLn (T.replicate 40 "=")
-            liftIO $ print entry
+            let hline = liftIO $ T.putStrLn (T.replicate 70 "=")
+            liftIO . putStrLn $ "Entrypoint is " ++ show entry
             liftIO $ printMap (graph ^. blockMap)
+
             hline
+            liftIO $ putStrLn "=== Marks ==="
             lm <- use labelMarks
             liftIO $ printMap lm
             hline
@@ -52,6 +56,8 @@ buildAndAnalyze fileName = do
 
             liftIO $ putStrLn "=== Symbolic ==="
             symbolic <- symbolicAnalysis build
+            allINames <- HM.keys <$> use fwdMap
+            allINames `forM_` infer
             -- liftIO . printMap $ symbolic
             -- hline
             HM.toList (build ^. pbYieldLabels) `forM_` \(yid, lbl) ->
@@ -65,12 +71,33 @@ buildAndAnalyze fileName = do
             merged <- foldM mergeSymMap HM.empty . map recode $ HM.toList (build ^. pbYieldLabels)
             liftIO . printMap $ merged
             hline
+            liftIO . putStrLn $ "rst = " ++ show (build ^. pbResetId)
+            hline
 
-            fm <- HM.toList <$> use fwdMap
-            sortOn fst fm `forM_` \(k, v) -> do
-                liftIO . putStrLn $ show k ++ " => " ++ show v
+            fm <- use fwdMap
+            sortOn fst (HM.toList fm) `forM_` \(k, v) -> do
+                let showItem (RegItem reg) = show reg
+                    showItem (ComplexItem citem) = show citem
+                ty <- infer k
+                liftIO . putStrLn $ show k ++ " : " ++ show ty ++ " => " ++ showItem v
                 expr <- report k
                 liftIO . putStrLn $ "    = " ++ showCleanFree expr
+            hline
+
+            itym <- use inameTypeMap
+
+            let tin = TranslationInput
+                    { _tiSymbolic = merged
+                    , _tiYieldIdSet = HS.fromMap (() <$ build ^. pbYieldLabels)
+                    , _tiResetId = build ^. pbResetId
+                    , _tiFwdMap = fm
+                    , _tiItemTypeMap = itym
+                    }
+
+            let verilog = generateDecls name tin
+            liftIO . print $ verilog
+            hline
+            liftIO . print $ genModule verilog
             hline
 
 printMap :: _ => HM.HashMap k v -> IO ()
@@ -86,6 +113,7 @@ data ProgState f
     { _psUniqueSupply :: UniqueSupply
     , _psItemMap :: ItemMap f
     , _psBuildState :: BuildState
+    , _psTypeMap :: TypeMap
     }
 
 deriving instance Show (f IName) => Show (ProgState f)
@@ -95,6 +123,7 @@ $(makeLenses ''ProgState)
 instance HasUniqueSupply (ProgState f) where uniqueSupply = psUniqueSupply
 instance HasItemMap (ProgState f) f where itemMap = psItemMap
 instance HasBuildState (ProgState f) where buildState = psBuildState
+instance HasTypeMap (ProgState f) where typeMap = psTypeMap
 
 run :: _ => ExceptT CompilerError (StateT (ProgState ExprF) m) a -> m a
 run act = evalStateT (runExceptT act) initial >>= \case
@@ -103,7 +132,7 @@ run act = evalStateT (runExceptT act) initial >>= \case
         liftIO $ putStrLn ""
         error "Error occured"
     Right result -> pure result
-    where initial = ProgState initialSupply emptyItemMap initialBuildState
+    where initial = ProgState initialSupply emptyItemMap initialBuildState initialTypeMap
 
 playBuild :: IO ()
 playBuild = run (buildAndAnalyze "examples/play.finlog")

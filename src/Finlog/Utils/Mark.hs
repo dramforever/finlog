@@ -14,8 +14,8 @@ data Ann = HeadWordAnn | PositionAnn | CodeAnn
 
 annStyle :: Ann -> AnsiStyle
 annStyle HeadWordAnn = bold <> color Red
-annStyle PositionAnn = underlined
-annStyle CodeAnn = bold
+annStyle PositionAnn = bold
+annStyle CodeAnn = underlined
 
 toAnsi :: Doc Ann -> Doc AnsiStyle
 toAnsi = reAnnotate annStyle
