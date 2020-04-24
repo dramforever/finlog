@@ -78,3 +78,22 @@ As you can see, the execution of an otherwise pretty imperative-looking program 
 Presently there's no input or output mechanism, but you can manually edit the generated module to add some for testing. The feature set is also very limited, as I focused on getting from input text to output text as soon as possible instead of making a full featured language. And there's no documentation now, so for everything I said above you probably need to just take my word for it.
 
 Hey, at least I wrote a sorta working compiler.
+
+## The pipeline
+
+- Input text is parsed into an AST using [megaparsec]
+- The AST is converted into a control flow graph (CFG), the design of which is inspired greatly by [hoopl]. The 'algebraic' approach really took a large amount of mental burden off the construction of CFGs. Unfortunately, I was unable to find sufficient documentation on hoopl to get me started, and I am worried that the design of hoopl might not be flexible enough for use in finlog.
+- The CFG is effectively broken up at `yield` statements and the program is executed symbolically in topological order. We track which state we were in and the branches we took along the way, and at control flow merging points we combine the values, picking conditions that can tell histories apart.
+    - The values are saved in a hash-consed DAG
+- We gather up all the data the data in a way that's like a huge control flow merge.
+- The program is a state machine now, and we generate SystemVerilog code using a homemade AST and [prettyprinter].
+
+A large amount of plumbing is powered by [mtl] and [microlens].
+
+[megaparsec]: https://github.com/mrkkrp/megaparsec
+[hoopl]: http://hackage.haskell.org/package/hoopl
+[prettyprinter]: https://github.com/quchen/prettyprinter
+[mtl]: http://hackage.haskell.org/package/mtl
+[microlens]: https://github.com/monadfix/microlens
+
+A curious note is that although a DAG is used in finlog, since we are compiling to hardware, a scheduler is not necessary.
