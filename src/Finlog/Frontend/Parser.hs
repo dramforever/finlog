@@ -37,6 +37,7 @@ reservedNames =
     , "else"
     , "loop"
     , "while"
+    , "do"
     ]
 
 nameWord :: Parser Text
@@ -49,7 +50,7 @@ nameWord = T.cons
 
 reserved :: Text -> Parser ()
 reserved res | res `notElem` reservedNames =
-    error $ T.unpack res ++ " is not listed as reserved"
+    error $ "'" ++ T.unpack res ++ "' is not listed as reserved"
 reserved res = atom ("'" ++ T.unpack res ++ "'") $
     nameWord >>= guard . (== res)
 
@@ -93,9 +94,23 @@ primary =
     <|> parens expr
 
 operatorTable :: [[Operator Parser Expr]]
-operatorTable =
-    [ [ InfixL (binE Add <$ symbol "+") ]
-    ]
+operatorTable = unary ++ binary ++ ternary
+    where
+        unary = (map . map) genUnary
+            [ [BNot]
+            , [LNot]
+            ]
+        binary = (map . map) genBin
+            [ [Add, Sub]
+            , [BAnd, BOr]
+            , [Equ, Neq, Lt, Gt, Le, Ge]
+            , [LAnd, LOr]
+            ]
+        ternary =
+            [ [TernR $ (condE <$ symbol ":") <$ "?"]
+            ]
+        genUnary b = Prefix (unaryE b <$ symbol (T.pack $ show b))
+        genBin b = InfixL (binE b <$ symbol (T.pack $ show b))
 
 expr :: Parser Expr
 expr = makeExprParser primary operatorTable
@@ -110,6 +125,9 @@ stmtRaw =
     <|> YieldS <$ reserved "yield" <* symbol ";"
     <|> LoopS <$ reserved "loop" <*> block
     <|> WhileS <$ reserved "while" <*> parens expr <*> block
+    <|> flip DoWhileS
+        <$ reserved "do" <*> block
+        <* reserved "while" <*> parens expr <* symbol ";"
     <|> IfS
         <$ reserved "if" <*> parens expr <*> block
         <*> optional (reserved "else" *> block)

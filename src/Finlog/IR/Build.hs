@@ -221,8 +221,8 @@ buildStmtRaw (LoopS body) = do
         >|< mkLabel unreachable
 buildStmtRaw (WhileS cond body) = do
     condName <- recordLookup cond
-    enter <- freshLabelMark "enter"
-    out <- freshLabelMark "out"
+    enter <- freshLabelMark "enterw"
+    out <- freshLabelMark "outw"
     bodyGraph <- buildBlock body
     (loopLabel, loopGraph) <- loop $
         mkFinal (CondN condName enter out)
@@ -230,6 +230,17 @@ buildStmtRaw (WhileS cond body) = do
     pure $
         mkFinal (JumpN loopLabel)
         >|< loopGraph
+        >|< mkLabel out
+buildStmtRaw (DoWhileS cond body) = do
+    condName <- recordLookup cond
+    enter <- freshLabelMark "enterdw"
+    out <- freshLabelMark "outdw"
+    bodyGraph <- buildBlock body
+    pure $
+        mkFinal (JumpN enter)
+        >|< (mkLabel enter
+            >< bodyGraph
+            >< mkFinal (CondN condName enter out))
         >|< mkLabel out
 buildStmtRaw (IfS cond tblk eblkMay) = do
     thenL <- freshLabelMark "then"

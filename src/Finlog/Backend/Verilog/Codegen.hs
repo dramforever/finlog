@@ -34,13 +34,15 @@ genModule (Module name vars body) = vsep
 
 genDecl :: Decl -> Doc ann
 genDecl (DirDecl dir typ name) =
-    genDir dir <+> genType typ <+> genVar name <> ";"
-genDecl (TypeDecl net typ name) =
-    genNet net <+> genType typ <+> genVar name <> ";"
+    genDir dir <> genType typ <+> genVar name <> ";"
+genDecl (Wire typ name expr) =
+    "wire" <> genType typ <+> genVar name <+> "=" <+> genExpr expr <> ";"
+genDecl (Reg typ name) =
+    "reg" <> genType typ <+> genVar name <> ";"
 genDecl (Assign dst expr) =
     "assign" <+> genExpr dst <+> "=" <+> genExpr expr <> ";"
 genDecl (AlwaysFF edge var stmt) = vsep
-    [ "always_ff" <+> "@" <> parens (genEdge edge <+> genVar var)
+    [ "always" <+> "@" <> parens (genEdge edge <+> genVar var)
     , indent 4 $ genStmt stmt
     ]
 
@@ -73,6 +75,8 @@ genStmt (Comment cmt) = vsep $ go <$> T.lines cmt
 genExpr :: Expr -> Doc ann
 genExpr (VarE var) = genVar var
 genExpr (LitE literal) = genLiteral literal
+genExpr (UnaryE op rhs) =
+    parens $ genUnaryOp op <+> genExpr rhs
 genExpr (BinE op lhs rhs) =
     parens $ genExpr lhs <+> genBinOp op <+> genExpr rhs
 genExpr (CondE cond t e) =
@@ -91,10 +95,6 @@ genLiteral (Literal i0 (Signed s))
     | i0 < 0 = "-" <> viaShow s <> "'" <> "sd" <> viaShow (- i0)
     | otherwise = viaShow s <> "'" <> "sd" <> viaShow i0
 
-genNet :: Net -> Doc ann
-genNet Wire = "wire"
-genNet Reg = "reg"
-
 genDir :: Dir -> Doc ann
 genDir Input = "input"
 genDir Output = "output"
@@ -104,13 +104,17 @@ genEdge Posedge = "posedge"
 genEdge Negedge = "negedge"
 
 genType :: Typ -> Doc ann
-genType Bit = "logic"
+genType Bit = ""
 genType (Unsigned n) =
-    "logic"
-    <+> "[" <> viaShow (n - 1) <> ":" <> "0" <> "]"
+    " " <> "[" <> viaShow (n - 1) <> ":" <> "0" <> "]"
 genType (Signed n) =
-    "logic" <+> "signed"
+    " " <> "signed"
     <+> "[" <> viaShow (n - 1) <> ":" <> "0" <> "]"
 
+-- We'll see if this is a problem
+
+genUnaryOp :: UnaryOp -> Doc ann
+genUnaryOp = viaShow
+
 genBinOp :: BinOp -> Doc ann
-genBinOp Add = "+"
+genBinOp = viaShow

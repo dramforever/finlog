@@ -14,12 +14,21 @@ import           Lens.Micro.Platform
 literalType :: Literal -> Typ
 literalType (IntLitL (IntLit _ intTy)) = IntType intTy
 
-badArith, condDiffer :: Typ -> Typ -> CompilerError
-badArith t1 t2 =
+badUnaryOp :: BinOp -> Typ -> CompilerError
+badUnaryOp op rhs =
     CompilerError
-    ("Bad arithmetic on" <+> codeAnn (viaShow t1)
-        <+> "and" <+> codeAnn (viaShow t2))
+    ("Bad unary operation:"
+        <+> codeAnn (viaShow op <+> viaShow rhs))
     []
+
+badBinOp :: BinOp -> Typ -> Typ -> CompilerError
+badBinOp op lhs rhs =
+    CompilerError
+    ("Bad binary operation:"
+        <+> codeAnn (viaShow lhs <+> viaShow op <+> viaShow rhs))
+    []
+
+condDiffer :: Typ -> Typ -> CompilerError
 condDiffer t1 t2 =
     CompilerError
     ("Differing types in conditional" <+> codeAnn (viaShow t1)
@@ -27,21 +36,35 @@ condDiffer t1 t2 =
     []
 
 -- TODO: Simplify this
-arith :: Typ -> Typ -> Either CompilerError Typ
-arith (IntType (Unsigned s1)) (IntType (Unsigned s2)) =
-    Right $ IntType (Unsigned $ s1 `max` s2)
-arith (IntType (Unsigned s1)) (IntType (Signed s2)) =
-    Right $ IntType (Unsigned $ s1 `max` s2)
-arith (IntType (Signed s1)) (IntType (Unsigned s2)) =
-    Right $ IntType (Unsigned $ s1 `max` s2)
-arith (IntType (Signed s1)) (IntType (Signed s2)) =
-    Right $ IntType (Signed $ s1 `max` s2)
-arith t1 t2 = Left $ badArith t1 t2
+combineInt :: Typ -> Typ -> Maybe IntType
+combineInt (UnsignedTy s1) (UnsignedTy s2) = Just $ Unsigned (s1 `max` s2)
+combineInt (UnsignedTy s1) (SignedTy s2) = Just $ Unsigned (s1 `max` s2)
+combineInt (SignedTy s1) (UnsignedTy s2) = Just $ Unsigned (s1 `max` s2)
+combineInt (SignedTy s1) (SignedTy s2) = Just $ Signed (s1 `max` s2)
+combineInt _ _ = Nothing
+
+inferBin :: BinOp -> Typ -> Typ -> Maybe Typ
+inferBin BinArith lhs rhs = IntType <$> combineInt lhs rhs
+inferBin BinBitComb BitTy BitTy = Just BitTy
+inferBin BinBitComb lhs rhs = IntType <$> combineInt lhs rhs
+inferBin BinComp lhs rhs
+    | lhs == rhs = Just BitTy
+    | otherwise = Nothing
+inferBin BinLogic (IntType _) (IntType _) = Just BitTy
+inferBin BinLogic _ _  = Nothing
+
 
 inferExprF :: ExprF Typ -> Either CompilerError Typ
 inferExprF (LitE lit) = Right $ literalType lit
 inferExprF (InputE _ typ) = Right typ
-inferExprF (BinE Add lhs rhs) = arith lhs rhs
+inferExprF (UnaryE BNot rhs@(IntType _)) = Right rhs
+-- inferExprF (UnaryE op@BNot rhs) = Left $ badUnaryOp op rhs
+inferExprF (UnaryE LNot (IntType _)) = Right BitTy
+-- inferExprF (UnaryE op@LNot rhs) = Left $ badUnaryOp op rhs
+inferExprF (BinE op lhs rhs) =
+    case inferBin op lhs rhs of
+        Just ty -> Right ty
+        Nothing -> Left $ badBinOp op lhs rhs
 inferExprF (CondE _cond lhs rhs) =
     if lhs == rhs
         then Right lhs

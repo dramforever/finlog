@@ -52,14 +52,6 @@ buildAndAnalyze fileName = do
             liftIO $ printMap lm
             hline
 
-            -- liftIO $ putStrLn "=== Liveness ==="
-            -- liveness <- livenessAnalysis graph
-            -- liftIO $ printMap liveness
-            -- hline
-            -- forM_ (sortOn fst $ HM.toList lm) $ \(lbl, stmt) ->
-            --     liftIO $ putStrLn (show (listToMaybe stmt) ++ " => " ++ show (liveness HM.! lbl))
-            -- hline
-
             liftIO $ putStrLn "=== Symbolic ==="
             symbolic <- symbolicAnalysis build
             allINames <- HM.keys <$> use fwdMap

@@ -58,6 +58,7 @@ default-extensions:
 - TypeFamilyDependencies
 - UnboxedTuples
 - UndecidableInstances
+- ViewPatterns
 
 library:
   source-dirs: src
