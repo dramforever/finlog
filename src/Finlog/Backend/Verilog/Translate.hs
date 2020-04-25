@@ -15,7 +15,10 @@ import           Lens.Micro.Platform
 
 data TranslationInput
     = TranslationInput
-    { _tiSymbolic :: HM.HashMap YieldId SymState
+    { _tiName :: Var
+    , _tiInputVars :: HM.HashMap Var Typ
+    , _tiOutputVars :: HM.HashMap Var Reg
+    , _tiSymbolic :: HM.HashMap YieldId SymState
     , _tiYieldIdSet :: HS.HashSet YieldId
     , _tiResetId :: YieldId
     , _tiFwdMap :: HM.HashMap IName (Item ExprF)
@@ -35,18 +38,24 @@ mkLit :: Literal -> V.Literal
 mkLit (IntLitL (IntLit int ty)) = V.Literal int (mkTyp (IntType ty))
 
 stateReg :: V.VerilogVar
-stateReg = V.VerilogVar "$state"
+stateReg = V.VerilogVar "state$"
+
+mkInput :: Var -> V.VerilogVar
+mkInput (Var name) = V.VerilogVar $ "in$" <> name
+
+mkOutput :: Var -> V.VerilogVar
+mkOutput (Var name) = V.VerilogVar $ "out$" <> name
 
 mkReg :: Reg -> V.VerilogVar
 mkReg (Reg name (Unique n)) =
-    V.VerilogVar $ "$reg$" <> name <> "$" <> T.pack (show n)
+    V.VerilogVar $ "reg$" <> name <> "$" <> T.pack (show n)
 
 mkRegD :: Reg -> Typ -> V.Decl
 mkRegD reg typ = V.TypeDecl V.Reg (mkTyp typ) (mkReg reg)
 
 mkIName :: IName -> V.VerilogVar
 mkIName (IName (Unique n)) =
-    V.VerilogVar $ "$_" <> T.pack (show n)
+    V.VerilogVar $ "_$" <> T.pack (show n)
 
 mkINameD :: IName -> Typ -> V.Decl
 mkINameD iname typ = V.TypeDecl V.Wire (mkTyp typ) (mkIName iname)
@@ -67,6 +76,7 @@ mkItem (iname, typ, ComplexItem exprf) =
 
 mkExprF :: ExprF V.Expr -> V.Expr
 mkExprF (LitE lit) = V.LitE (mkLit lit)
+mkExprF (InputE (Var name) _) = V.VarE (V.VerilogVar name)
 mkExprF (BinE op lhs rhs) = V.BinE (mkBinOp op) lhs rhs
 mkExprF (CondE cond t e) = V.CondE cond t e
 
@@ -127,12 +137,37 @@ generateGate tin =
                     $ genBranch <$> symbolicList))
         ]
 
-generateDecls :: T.Text -> TranslationInput -> V.Module
-generateDecls name tin =
-    V.Module (V.VerilogVar name) ["clk", "rst"] $
+generateInputs :: TranslationInput -> [V.Decl]
+generateInputs tin = gen <$> HM.toList (tin ^. tiInputVars)
+    where
+        gen (var, typ) =
+            V.DirDecl V.Input (mkTyp typ) (mkInput var)
+
+generateOutputs :: TranslationInput -> ([V.Decl], [V.Decl])
+generateOutputs tin = unzip $ gen <$> HM.toList (tin ^. tiOutputVars)
+    where
+        gen (var, reg) =
+            let typ = tin ^?! tiRegTypeMap . at reg . _Just
+            in  ( V.DirDecl V.Output (mkTyp typ) (mkOutput var)
+                , V.Assign (V.VarE $ mkOutput var) (V.VarE $ mkReg reg)
+                )
+
+generateDecls :: TranslationInput -> V.Module
+generateDecls tin =
+    V.Module (V.VerilogVar name) ports $
         [ V.DirDecl V.Input V.Bit "clk"
         , V.DirDecl V.Input V.Bit "rst"
         ]
+        ++ generateInputs tin
+        ++ outputDecls
         ++ generateRegs tin
+        ++ outputAssigns
         ++ generateMatrix tin
         ++ generateGate tin
+    where
+        (outputDecls, outputAssigns) = generateOutputs tin
+        Var name = tin ^. tiName
+        ports =
+            ["clk",  "rst"]
+            ++ (mkInput <$> HM.keys (tin ^. tiInputVars))
+            ++ (mkOutput <$> HM.keys (tin ^. tiOutputVars))

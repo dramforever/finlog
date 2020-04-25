@@ -31,6 +31,7 @@ reservedNames :: [Text]
 reservedNames =
     [ "proc"
     , "var"
+    , "output"
     , "yield"
     , "if"
     , "else"
@@ -105,13 +106,14 @@ stmtRaw =
         <$ reserved "var" <*> var
         <* symbol ":" <*> typ
         <* symbol "=" <*> expr <* symbol ";"
-    <|> AssignS <$> var <* symbol "=" <*> expr <* symbol ";"
+    <|> OutputS <$ reserved "output" <*> var <* symbol ";"
     <|> YieldS <$ reserved "yield" <* symbol ";"
     <|> LoopS <$ reserved "loop" <*> block
     <|> WhileS <$ reserved "while" <*> parens expr <*> block
     <|> IfS
         <$ reserved "if" <*> parens expr <*> block
         <*> optional (reserved "else" *> block)
+    <|> AssignS <$> var <* symbol "=" <*> expr <* symbol ";"
     <|> BlockS <$> block
 
 stmt :: Parser Stmt
@@ -120,8 +122,16 @@ stmt = Stmt <$> getSourcePos <*> stmtRaw
 block :: Parser StmtBlock
 block = symbol "{" *> many stmt <* symbol "}"
 
+input :: Parser Input
+input = Input <$> var <* symbol ":" <*> typ
+
+inputs :: Parser [Input]
+inputs =
+    parens (input `sepBy` symbol ",")
+    <|> pure []
+
 process :: Parser Process
-process = Process <$ reserved "proc" <*> var <*> block
+process = Process <$ reserved "proc" <*> var <*> inputs <*> block
 
 program :: Parser Program
 program = Program <$ sc <*> many process <* eof

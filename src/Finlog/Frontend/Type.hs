@@ -40,6 +40,7 @@ arith t1 t2 = Left $ badArith t1 t2
 
 inferExprF :: ExprF Typ -> Either CompilerError Typ
 inferExprF (LitE lit) = Right $ literalType lit
+inferExprF (InputE _ typ) = Right typ
 inferExprF (BinE Add lhs rhs) = arith lhs rhs
 inferExprF (CondE _cond lhs rhs) =
     if lhs == rhs

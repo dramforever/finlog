@@ -14,15 +14,20 @@ import           Finlog.Utils.Mark
 import           GHC.Stack
 import           Lens.Micro.Platform
 
+data VarOrigin = RegVar Reg | InputVar Var
+    deriving (Show, Eq)
+
 data VarInfo
     = VarInfo
-    { _varReg :: Reg
+    { _varOrigin :: VarOrigin
+    , _varIName :: IName
     , _varType :: Typ
     }
     deriving (Show, Eq)
 
 data BuildState = BuildState
     { _varMap :: HM.HashMap Var VarInfo
+    , _bsOutputVars :: HM.HashMap Var Reg
     , _labelMarks :: HM.HashMap Label [Mark]
     , _yieldLabels :: HM.HashMap YieldId Label
     , _yieldPostLabels :: HM.HashMap YieldId Label
@@ -51,6 +56,7 @@ initialBuildState :: BuildState
 initialBuildState =
     BuildState
     { _varMap = HM.empty
+    , _bsOutputVars = HM.empty
     , _labelMarks = HM.empty
     , _yieldLabels = HM.empty
     , _yieldPostLabels = HM.empty
@@ -64,7 +70,7 @@ lookupVar getting var@(Var name) = use (varMap . at var) >>= \case
         "Variable not in scope:" <+> codeAnn (pretty name)
 
 recordLookup :: _ => Expr -> m IName
-recordLookup expr = traverse (lookupVar varReg) expr >>= record
+recordLookup expr = traverse (lookupVar varIName) expr >>= recordPartial
 
 loop :: (HasCallStack, _) => Graph (Node m) 'O 'O -> m (Label, Graph (Node m) 'C 'C)
 loop gr = (\lbl -> (lbl, mkLoop lbl)) <$> freshLabelMark "loop"
@@ -75,6 +81,8 @@ data ProcessBuild m
     { _pbGraph :: Graph (Node m) 'C 'C
     , _pbEntry :: Label
     , _pbResetId :: YieldId
+    , _pbInputVars :: HM.HashMap Var Typ
+    , _pbOutputVars :: HM.HashMap Var Reg
     , _pbYieldLabels :: HM.HashMap YieldId Label
     , _pbYieldPostLabels :: HM.HashMap YieldId Label
     }
@@ -83,9 +91,19 @@ data ProcessBuild m
 $(makeLenses ''ProcessBuild)
 
 buildProcess :: (HasCallStack, _) => Process -> m (ProcessBuild m)
-buildProcess (Process (Var name) stmts) = do
+buildProcess (Process (Var name) inputs stmts) = do
     oldYieldLabels <- use yieldLabels
     oldYieldPostLabels <- use yieldPostLabels
+    oldVarMap <- use varMap
+    oldOutputVars <- use bsOutputVars
+
+    forM_ inputs $ \(Input var typ) -> do
+        iname <- recordItem $ ComplexItem (InputE var typ)
+        varMap . at var ?= VarInfo
+            { _varOrigin = InputVar var
+            , _varIName = iname
+            , _varType = typ
+            }
 
     entry <- freshLabelMark $ "entry_" <> name
     entryPost <- freshLabelMark $ "entrypost_" <> name
@@ -103,12 +121,19 @@ buildProcess (Process (Var name) stmts) = do
 
     yl <- use yieldLabels
     ypol <- use yieldPostLabels
+    ovars <- use bsOutputVars
+
     yieldLabels .= oldYieldLabels
     yieldPostLabels .= oldYieldPostLabels
+    varMap .= oldVarMap
+    bsOutputVars .= oldOutputVars
 
     pure $ ProcessBuild
         { _pbGraph = graph'
         , _pbEntry = entry
+        , _pbInputVars = HM.fromList $
+            (\(Input var typ) -> (var, typ)) <$> inputs
+        , _pbOutputVars = ovars
         , _pbResetId = resetId
         , _pbYieldLabels = yl
         , _pbYieldPostLabels = ypol
@@ -144,9 +169,11 @@ buildStmtRaw :: (HasCallStack, _) => StmtRaw -> m (Graph (Node m) 'O 'O)
 buildStmtRaw (BlockS stmts) = buildBlock stmts
 buildStmtRaw (DeclareS var@(Var name) typ initial) = do
     reg <- freshReg name
+    iname <- recordReg reg
     regType reg ?= typ
     let info = VarInfo
-            { _varReg = reg
+            { _varOrigin = RegVar reg
+            , _varIName = iname
             , _varType = typ
             }
     varMap . at var ?= info
@@ -154,13 +181,26 @@ buildStmtRaw (DeclareS var@(Var name) typ initial) = do
     initialType <- infer initialName
     checkAssignable typ initialType
     pure $ mkNode (StoreN reg initialName)
-buildStmtRaw (AssignS var expr) = do
-    reg <- lookupVar varReg var
-    rType <- fromJust <$> use (regType reg)
-    exprName <- recordLookup expr
-    exprType <- infer exprName
-    checkAssignable rType exprType
-    pure $ mkNode (StoreN reg exprName)
+buildStmtRaw (OutputS var@(Var name)) =
+    lookupVar varOrigin var >>= \case
+        RegVar reg -> do
+            bsOutputVars . at var ?= reg
+            pure emptyOpen
+        org -> compilerError $
+            "Cannot set output" <+> codeAnn (pretty name)
+            <+> "which has origin" <+> codeAnn (viaShow org)
+
+buildStmtRaw (AssignS var@(Var name) expr) =
+    lookupVar varOrigin var >>= \case
+        RegVar reg -> do
+            rType <- fromJust <$> use (regType reg)
+            exprName <- recordLookup expr
+            exprType <- infer exprName
+            checkAssignable rType exprType
+            pure $ mkNode (StoreN reg exprName)
+        org -> compilerError $
+            "Cannot assign to" <+> codeAnn (pretty name)
+            <+> "which has origin" <+> codeAnn (viaShow org)
 buildStmtRaw YieldS = do
     yid <- freshYieldId
     lbl <- freshLabelMark "yield"

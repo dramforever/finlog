@@ -32,11 +32,17 @@ buildAndAnalyze fileName = do
             Right result -> result
     use fwdMap >>= liftIO . printMap
     case parsed of
-        Program procs -> forM_ procs $ \process@(Process (Var name) _) -> do
+        Program procs -> forM_ procs $ \process@(Process name _ _) -> do
             build <- buildProcess process
             let entry = build ^. pbEntry
                 graph = build ^. pbGraph
             let hline = liftIO $ T.putStrLn (T.replicate 70 "=")
+
+            liftIO . print $ process
+            hline
+            liftIO . print $ build
+            hline
+
             liftIO . putStrLn $ "Entrypoint is " ++ show entry
             liftIO $ printMap (graph ^. blockMap)
 
@@ -69,7 +75,8 @@ buildAndAnalyze fileName = do
                     HM.lookupDefault HM.empty lbl symbolic
                     & traversed . ssYield .~ YieldYT yid
             merged <- foldM mergeSymMap HM.empty . map recode $ HM.toList (build ^. pbYieldLabels)
-            liftIO . printMap $ merged
+            base <- mkBase $ (^. ssRegs) <$> HM.elems merged
+            liftIO . printMap $ (ssRegs %~ (<> base)) <$> merged
             hline
             liftIO . putStrLn $ "rst = " ++ show (build ^. pbResetId)
             hline
@@ -88,7 +95,10 @@ buildAndAnalyze fileName = do
             itym <- use inameTypeMap
 
             let tin = TranslationInput
-                    { _tiSymbolic = merged
+                    { _tiName = name
+                    , _tiInputVars = build ^. pbInputVars
+                    , _tiOutputVars = build ^. pbOutputVars
+                    , _tiSymbolic = merged
                     , _tiYieldIdSet = HS.fromMap (() <$ build ^. pbYieldLabels)
                     , _tiResetId = build ^. pbResetId
                     , _tiFwdMap = fm
@@ -96,7 +106,7 @@ buildAndAnalyze fileName = do
                     , _tiItemTypeMap = itym
                     }
 
-            let verilog = generateDecls name tin
+            let verilog = generateDecls tin
             liftIO . print $ verilog
             hline
             liftIO . print $ genModule verilog

@@ -13,8 +13,10 @@ genVar (VerilogVar var) = pretty escape
             | T.null var = error "Can't handle empty variable name"
             | T.any isSpace var = error "Can't handle variable name with spaces"
             | not (T.all isAscii var) = error "Can't handle variable name with non-ASCII"
-            | T.all isAlphaNum var && isAlpha (T.head var) = var
+            | T.all okChar var && okHead (T.head var) = var
             | otherwise = "\\" <> var <> " "
+        okChar x = isAlphaNum x || x == '$' || x == '_'
+        okHead x = isAlpha x || x == '_'
 
 gen :: Verilog -> Doc ann
 gen (Verilog mods) = vsep . intersperse "" $ genModule <$> mods
