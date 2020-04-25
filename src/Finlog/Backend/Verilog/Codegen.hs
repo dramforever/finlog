@@ -37,8 +37,8 @@ genDecl (TypeDecl net typ name) =
     genNet net <+> genType typ <+> genVar name <> ";"
 genDecl (Assign dst expr) =
     "assign" <+> genExpr dst <+> "=" <+> genExpr expr <> ";"
-genDecl (Always trigger stmt) = vsep
-    [ "always" <+> genTrigger trigger
+genDecl (AlwaysFF edge var stmt) = vsep
+    [ "always_ff" <+> "@" <> parens (genEdge edge <+> genVar var)
     , indent 4 $ genStmt stmt
     ]
 
@@ -88,10 +88,6 @@ genLiteral (Literal i0 (Unsigned s))
 genLiteral (Literal i0 (Signed s))
     | i0 < 0 = "-" <> viaShow s <> "'" <> "sd" <> viaShow (- i0)
     | otherwise = viaShow s <> "'" <> "sd" <> viaShow i0
-
-genTrigger :: Trigger -> Doc ann
-genTrigger (Trigger edge var) = "@" <> parens (genEdge edge <+> genVar var)
-genTrigger StarTrigger = "@" <> parens "*"
 
 genNet :: Net -> Doc ann
 genNet Wire = "wire"

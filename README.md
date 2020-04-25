@@ -51,7 +51,7 @@ module main (clk, rst);
     assign \$_16  = (\$_15  + \$_15 );
     // ...
     reg logic [0:0] \$state ;
-    always @(posedge clk)
+    always_ff @(posedge clk)
         if (rst) begin
             \$state  <= 1'd0;
             \$reg$counter$4  <= \$_46 ;

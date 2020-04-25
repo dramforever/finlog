@@ -120,7 +120,7 @@ generateGate tin =
                 <$> sortOn fst (HM.toList as))
         genBranch (yid, sym) = (stateMap HM.! yid, genSym sym)
     in  [ V.TypeDecl V.Reg (V.Unsigned numBits) stateReg
-        , V.Always (V.Trigger V.Posedge "clk")
+        , V.AlwaysFF V.Posedge "clk"
             (V.If (V.VarE "rst")
                 (genSym $ tin ^?! tiSymbolic . at resetId. _Just)
                 (Just $ V.Case (V.VarE stateReg)

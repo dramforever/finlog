@@ -17,7 +17,7 @@ data Decl
     = DirDecl Dir Typ VerilogVar
     | TypeDecl Net Typ VerilogVar
     | Assign Expr Expr
-    | Always Trigger Stmt
+    | AlwaysFF Edge VerilogVar Stmt
 
 data Stmt
     = Block [Stmt]
@@ -35,9 +35,6 @@ data Expr
 
 data Literal = Literal Integer Typ
 
-data Trigger
-    = Trigger Edge VerilogVar
-    | StarTrigger
 
 data Net = Wire | Reg
 data Dir = Input | Output
