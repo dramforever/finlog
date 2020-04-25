@@ -9,6 +9,8 @@ Imperative code with loops broken by `yield` (name stolen from generators) like 
 ```plain
 proc main {
     var counter: u32 = 0u32;
+    output counter;
+
     var a: u32 = 1u32;
     var out: u32 = 0u32;
     loop {
@@ -31,42 +33,39 @@ Synchronous hardware also runs step by step, which means that if the state space
 
 (Curiously, Verilog *also* described hardware in imperative code, but it was originally designed to do so indirectly: *simulation* of hardware  in *software*.)
 
-In this case, the code is compiled into a synthesizable SystemVerilog module (output abridged for readability):
+In this case, the code is compiled into a synthesizable Verilog module (output abridged for readability):
 
 ```systemverilog
-module main (clk, rst);
-    input logic clk;
-    input logic rst;
-    reg logic [31:0] \$reg$counter$4 ;
-    reg logic [31:0] \$reg$a$7 ;
-    reg logic [31:0] \$reg$out$10 ;
-    reg logic [31:0] \$reg$b$14 ;
-    reg logic [31:0] \$reg$c$18 ;
-    wire logic [31:0] \$_5 ;
-    wire logic [31:0] \$_8 ;
+module main (clk, rst, out$counter);
+    input clk;
+    input rst;
+    output [31:0] out$counter;
+    reg [31:0] reg$counter$4;
+    reg [31:0] reg$a$9;
+    reg [31:0] reg$out$13;
+    reg [31:0] reg$b$18;
+    reg [31:0] reg$c$22;
+    assign out$counter = reg$counter$4;
+    wire [31:0] _$5 = reg$counter$4;
+    wire [31:0] _$6 = 32'd0;
     // ...
-    assign \$_5  = 32'd0;
-    assign \$_8  = 32'd1;
-    assign \$_15  = \$reg$a$7 ;
-    assign \$_16  = (\$_15  + \$_15 );
-    // ...
-    reg logic [0:0] \$state ;
-    always_ff @(posedge clk)
+    reg [0:0] state$;
+    always @(posedge clk)
         if (rst) begin
-            \$state  <= 1'd0;
-            \$reg$counter$4  <= \$_46 ;
-            \$reg$a$7  <= \$_43 ;
-            \$reg$out$10  <= \$_46 ;
-            \$reg$b$14  <= \$_39 ;
-            \$reg$c$18  <= \$_40 ;
-        end else case (\$state )
+            state$ <= 1'd0;
+            reg$counter$4 <= _$48;
+            reg$a$9 <= _$45;
+            reg$out$13 <= _$48;
+            reg$b$18 <= _$41;
+            reg$c$22 <= _$42;
+        end else case (state$)
             1'd0: begin
-                \$state  <= 1'd1;
-                \$reg$out$10  <= \$_15 ;
+                state$ <= 1'd1;
+                reg$out$13 <= _$10;
             end
             1'd1: begin
-                \$state  <= 1'd0;
-                \$reg$counter$4  <= \$_27 ;
+                state$ <= 1'd0;
+                reg$counter$4 <= _$29;
                 // ...
             end
         endcase
@@ -75,7 +74,7 @@ endmodule
 
 As you can see, the execution of an otherwise pretty imperative-looking program is converted into a state machine.
 
-Presently there's no input or output mechanism, but you can manually edit the generated module to add some for testing. The feature set is also very limited, as I focused on getting from input text to output text as soon as possible instead of making a full featured language. And there's no documentation now, so for everything I said above you probably need to just take my word for it.
+The feature set is limited but should allow basic imperative programs, But there's no documentation now, so for everything I said above you probably need to just take my word for it.
 
 Hey, at least I wrote a sorta working compiler.
 
