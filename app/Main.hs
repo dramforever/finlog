@@ -41,7 +41,7 @@ genProcess process@(Process name _ _) = run $ do
     fm <- use fwdMap
     sortOn fst (HM.toList fm) `forM_` \(k, _) -> infer k
 
-    rtym <- use regTypeMapw
+    rtym <- use regTypeMap
     itym <- use inameTypeMap
 
     let tin = TranslationInput
