@@ -74,7 +74,7 @@ endmodule
 
 As you can see, the execution of an otherwise pretty imperative-looking program is converted into a state machine.
 
-The feature set is limited but should allow basic imperative programs, But there's no documentation now, so for everything I said above you probably need to just take my word for it.
+The feature set is limited but should allow basic imperative programs, But there's no documentation now, so for everything I said above you probably need to just take my word for it. A bare minimum driver program is available and can be accessed by `stack run` or `cabal run`.
 
 Hey, at least I wrote a sorta working compiler.
 
