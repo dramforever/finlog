@@ -4,6 +4,8 @@ import           Control.Applicative hiding (many)
 import           Control.Monad
 import           Control.Monad.Combinators.Expr
 import           Data.Char
+import           Data.List
+import           Data.Ord
 import qualified Data.Text as T
 import           Data.Text (Text)
 import           Data.Void (Void)
@@ -94,13 +96,16 @@ primary =
     <|> parens expr
 
 operatorTable :: [[Operator Parser Expr]]
-operatorTable = unary ++ binary ++ ternary
+operatorTable =
+    (map . map) genUnary unary
+    ++ (map . map) genBin binary
+    ++ ternary
     where
-        unary = (map . map) genUnary
+        unary =
             [ [BNot]
             , [LNot]
             ]
-        binary = (map . map) genBin
+        binary =
             [ [Add, Sub]
             , [BAnd, BOr]
             , [Equ, Neq, Lt, Gt, Le, Ge]
@@ -109,8 +114,24 @@ operatorTable = unary ++ binary ++ ternary
         ternary =
             [ [TernR $ (condE <$ symbol ":") <$ "?"]
             ]
-        genUnary b = Prefix (unaryE b <$ symbol (T.pack $ show b))
-        genBin b = InfixL (binE b <$ symbol (T.pack $ show b))
+
+        toStrs :: Show a => [[a]] -> Parser T.Text
+        toStrs =
+            msum
+            . map (symbol . T.pack)
+            . sortOn (Down . length)
+            . map show
+            . concat
+
+        strsElem :: Show a => Parser T.Text -> a -> Parser ()
+        strsElem strs a = try $ strs >>= guard . okay
+            where okay x = x == T.pack (show a)
+
+        unaryStrs = toStrs unary
+        binaryStrs = toStrs binary
+
+        genUnary b = Prefix (unaryE b <$ strsElem unaryStrs b)
+        genBin b = InfixL (binE b <$ strsElem binaryStrs b)
 
 expr :: Parser Expr
 expr = makeExprParser primary operatorTable
