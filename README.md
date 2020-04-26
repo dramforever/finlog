@@ -1,6 +1,6 @@
 # finlog
 
-Just a toy compiler. *WIP*
+Just a toy compiler. *WIP*, *BUGS BEWARE*
 
 ## Current progress
 
