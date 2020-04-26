@@ -85,8 +85,8 @@ genExpr (CondE cond t e) =
 genLiteral :: Literal -> Doc ann
 genLiteral (Literal i Bit) =
     case i of
-        0 -> "0"
-        1 -> "1"
+        0 -> "1'b0"
+        1 -> "1'b1"
         _ -> error $ "Invalid literal " ++ show i
 genLiteral (Literal i0 (Unsigned s))
     | i0 < 0 = "-" <> viaShow s <> "'" <> "d" <> viaShow (- i0)
