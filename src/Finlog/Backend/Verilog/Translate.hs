@@ -18,7 +18,7 @@ data TranslationInput
     { _tiName :: Var
     , _tiInputVars :: HM.HashMap Var Typ
     , _tiOutputVars :: HM.HashMap Var Reg
-    , _tiSymbolic :: HM.HashMap YieldId SymState
+    , _tiSymbolic :: HM.HashMap YieldId (CondTree YieldId, RegState)
     , _tiYieldIdSet :: HS.HashSet YieldId
     , _tiResetId :: YieldId
     , _tiFwdMap :: HM.HashMap IName (Item ExprF)
@@ -107,19 +107,25 @@ generateGate tin =
             . HM.delete resetId
             $ tin ^. tiSymbolic
 
-        genYT (YieldYT yid) = V.LitE $ stateMap HM.! yid
-        genYT (CondYT iname t e) =
+        genYT (LeafCT yid) = V.LitE $ stateMap HM.! yid
+        genYT (CondCT iname t e) =
             V.CondE (V.VarE $ mkIName iname) (genYT t) (genYT e)
 
-        genSym (SymState _ yt as) = V.Block $
-            (V.VarE stateReg V.:<=: genYT yt)
-            : ((\(r, i) -> (V.VarE $ mkReg r) V.:<=: (V.VarE $ mkIName i))
-                <$> sortOn fst (HM.toList as))
-        genBranch (yid, sym) = (stateMap HM.! yid, genSym sym)
+        genRegs regs =
+            ((\(r, i) -> (V.VarE $ mkReg r) V.:<=: (V.VarE $ mkIName i))
+                <$> sortOn fst (HM.toList regs))
+
+        genBranch (yid, (yt, regs)) =
+            ( stateMap HM.! yid
+            , V.Block $
+                (V.VarE stateReg V.:<=: genYT yt)
+                : genRegs regs
+            )
+
     in  [ V.Reg (V.Unsigned numBits) stateReg
         , V.AlwaysFF V.Posedge "clk"
             (V.If (V.VarE "rst")
-                (genSym $ tin ^?! tiSymbolic . at resetId. _Just)
+                (snd . genBranch $ (resetId, tin ^?! tiSymbolic . at resetId . _Just))
                 (Just $ V.Case (V.VarE stateReg)
                     $ genBranch <$> symbolicList))
         ]

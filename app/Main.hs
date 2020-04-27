@@ -6,6 +6,7 @@ import           Control.Monad.State
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Data.List
+import           Data.Maybe
 import qualified Data.Text.IO as T
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Finlog.Backend.Verilog.AST as V
@@ -32,11 +33,23 @@ genProcess process@(Process name _ _) = run $ do
     allINames <- HM.keys <$> use fwdMap
     allINames `forM_` infer
 
-    let recode (yid, lbl) =
-            HM.lookupDefault HM.empty lbl symbolic
-            & traversed . ssYield .~ YieldYT yid
+    mergedSym <- mergeSymMaps . catMaybes $
+        (`HM.lookup` symbolic) <$> HM.elems (build ^. pbYieldLabels)
 
-    merged <- foldM mergeSymMap HM.empty . map recode $ HM.toList (build ^. pbYieldLabels)
+    let recode (yid, yl) = case HM.lookup yl symbolic of
+            Nothing -> HM.empty
+            Just m -> fmap go m
+            where go ss = (ss ^. ssCond, yid)
+        combine =
+            foldl' (HM.unionWith (++)) HM.empty
+            . (fmap . fmap) (: [])
+        combined = combine $ recode <$> HM.toList (build ^. pbYieldLabels)
+        genTreeError lbl tree = case genTree tree of
+            Nothing ->
+                compilerError $ "Could not generate tree for" <+> codeAnn (viaShow lbl)
+            Just (_, val) -> pure val
+
+    mergedYield <- HM.traverseWithKey genTreeError combined
 
     fm <- use fwdMap
     sortOn fst (HM.toList fm) `forM_` \(k, _) -> infer k
@@ -48,7 +61,10 @@ genProcess process@(Process name _ _) = run $ do
             { _tiName = name
             , _tiInputVars = build ^. pbInputVars
             , _tiOutputVars = build ^. pbOutputVars
-            , _tiSymbolic = merged
+            , _tiSymbolic =
+                HM.intersectionWith (,)
+                    mergedYield
+                    ((^. ssRegs) <$> mergedSym)
             , _tiYieldIdSet = HS.fromMap (() <$ build ^. pbYieldLabels)
             , _tiResetId = build ^. pbResetId
             , _tiFwdMap = fm

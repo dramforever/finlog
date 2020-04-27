@@ -15,16 +15,16 @@ import           Lens.Micro.Platform
 
 data TopoPass m a
     = TopoPass
-    { _tpStart :: HM.HashMap Label a
+    { _tpStart :: HM.HashMap Label [a]
     , _tpSucc :: Label -> m [Label]
-    , _tpMerge :: a -> a -> m a
-    , _tpWork :: Label -> a -> m (HM.HashMap Label a)
+    , _tpMerge :: [a] -> m a
+    , _tpWork :: Label -> a -> m (HM.HashMap Label [a])
     }
 
 data TopoState a
     = TopoState
     { _tsInDegrees :: HM.HashMap Label Int
-    , _tsValue :: HM.HashMap Label a
+    , _tsValue :: HM.HashMap Label [a]
     }
     deriving (Show)
 
@@ -58,23 +58,22 @@ topo pass =
     where
         start = do
             bfs pass >>= loop . listQueue
-            res <- MiniStateT $ use tsValue
             remain <- MiniStateT $ use tsInDegrees
             unless (HM.null remain)
                 (lift . compilerError $ "Cycle:" <+> viaShow (HM.keys remain))
-            pure res
+            (MiniStateT $ use tsValue)
+                >>= lift . traverse (pass ^. tpMerge)
         loop q = case pop q of
             Nothing -> pure ()
             Just (l, q') -> do
-                vMay <- MiniStateT $ use $ tsValue . at l
+                vMay <- MiniStateT (use $ tsValue . at l)
                 vMay `for_` \v -> do
-                    gen <- lift $ (pass ^. tpWork) l v
+                    mergedV <- lift $ (pass ^. tpMerge) v
+                    gen <- lift $ (pass ^. tpWork) l mergedV
                     HM.toList gen `for_` \(lbl, val) ->
-                        MiniStateT (use $ tsValue . at lbl) >>= \case
-                            Nothing -> MiniStateT $ tsValue . at lbl ?= val
-                            Just orig ->
-                                lift ((pass ^. tpMerge) orig val)
-                                >>= MiniStateT . (tsValue . at lbl ?=)
+                        MiniStateT $ (use $ tsValue . at lbl) >>= \case
+                            Nothing -> tsValue . at lbl ?= val
+                            Just _ -> tsValue . at lbl ._Just %= (val ++)
                 lsucc <- lift $ (pass ^. tpSucc) l
                 new <- fmap catMaybes $ lsucc `for` \lbl -> do
                     deg <- MiniStateT $ inDegree lbl <%= (subtract 1)

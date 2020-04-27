@@ -16,28 +16,46 @@ import           Finlog.IR.Build
 import           Finlog.IR.Node
 import           Finlog.Utils.Mark
 import           Finlog.Utils.MiniState
+import           GHC.Stack
 import           Lens.Micro.Platform
 
 type Condition = HM.HashMap IName Bool
 
-mergeCondition
-    :: Condition
-    -> Condition
-    -> Maybe (IName, Bool, Condition)
-mergeCondition cond1 cond2 =
-    (\(i, b) -> (i, b, agree)) <$> listToMaybe (toList disagree)
+data CondTree a
+    = LeafCT a
+    | CondCT IName (CondTree a) (CondTree a)
+    deriving (Eq)
+
+genTree' :: [(Condition, a)] -> Maybe (CondTree a)
+genTree' [] = Nothing
+genTree' [(_, a)] = Just (LeafCT a)
+genTree' xs = asum $ tryKey <$> HM.keys notEqual
     where
-        common = HM.intersectionWith (,) cond1 cond2
-        agree = HM.mapMaybe getAgree common
-        disagree = HM.mapMaybeWithKey getDisagree common
+        common = intersectList (fst <$> xs)
+        equal = HM.filter allEqual common
+        notEqual = HM.filter (not . allEqual) common
+        xs' = xs & traversed . _1 %~ (`HM.difference` equal)
+        tryKey key =
+            let trues = filter (^?! _1 . at key . _Just) xs'
+                falses = filter (not . (^?! _1 . at key . _Just)) xs'
+            in CondCT key <$> genTree' trues <*> genTree' falses
 
-getAgree :: Eq a => (a, a) -> Maybe a
-getAgree (x, y) = if x == y then Just x else Nothing
+genTree :: [(Condition, a)] -> Maybe (Condition, CondTree a)
+genTree xs = (equal,) <$> genTree' xs
+    where
+        common = intersectList (fst <$> xs)
+        equal = head <$> HM.filter allEqual common
 
-getDisagree :: Eq a => a -> (Bool, Bool) -> Maybe (a, Bool)
-getDisagree k (True, False) = Just $ (k, True)
-getDisagree k (False, True) = Just $ (k, False)
-getDisagree _ _ = Nothing
+intersectList :: (HasCallStack, _) => [HM.HashMap k v] -> HM.HashMap k [v]
+intersectList [] = error "intersectList: empty list"
+intersectList xs =
+    foldr1 (HM.intersectionWith (++))
+    . (fmap . fmap) (: [])
+    $ xs
+
+allEqual :: (HasCallStack, _) => [a] -> Bool
+allEqual [] = error "allEqual: empty list"
+allEqual (x : xs) = all (== x) xs
 
 insertCond :: IName -> Bool -> Condition -> Maybe Condition
 insertCond iname bl cond = case cond ^. at iname of
@@ -46,30 +64,19 @@ insertCond iname bl cond = case cond ^. at iname of
         | otherwise -> Nothing
     Nothing -> Just $ HM.insert iname bl cond
 
-data YieldTree
-    = YieldYT YieldId
-    | CondYT IName YieldTree YieldTree
-    deriving (Eq)
-
-instance Show YieldTree where
+instance Show a => Show (CondTree a) where
     showsPrec p n = case n of
-        YieldYT yid -> showsPrec 11 yid
-        CondYT cond ty ey -> showParen (p > 10) $
+        LeafCT x -> showsPrec 11 x
+        CondCT cond ty ey -> showParen (p > 10) $
             showsPrec 11 cond
             . showString " t:" . showsPrec 11 ty
             . showString " f:" . showsPrec 11 ey
-
-condYT :: IName -> YieldTree -> YieldTree -> YieldTree
-condYT iname a b
-    | a == b = a
-    | otherwise = CondYT iname a b
 
 type RegState = HM.HashMap Reg IName
 
 data SymState
     = SymState
     { _ssCond :: Condition
-    , _ssYield :: YieldTree
     , _ssRegs :: RegState
     }
     deriving (Eq)
@@ -77,11 +84,9 @@ data SymState
 $(makeLenses ''SymState)
 
 instance Show SymState where
-    showsPrec p (SymState cond yi regs) = showParen (p > 10) $
+    showsPrec p (SymState cond regs) = showParen (p > 10) $
         showString "SymState "
         . showsPrec 11 (HM.toList cond)
-        . showString " "
-        . showsPrec 11 yi
         . showString " "
         . showsPrec 11 (HM.toList regs)
 
@@ -91,32 +96,45 @@ mkBase ms = do
     HM.fromList <$>
         traverse (\reg -> (reg,) <$> recordReg reg) keys
 
-mergeSymState :: _ => SymState -> SymState -> m SymState
-mergeSymState (SymState cond1 yi1 regs1) (SymState cond2 yi2 regs2) =
-    case mergeCondition cond1 cond2 of
-        Nothing -> compilerError $ "Bad conditions" <+> codeAnn (viaShow (cond1, cond2))
-        Just (key, firstTrue, newCond) -> do
-            let switch :: (a -> a -> b) -> (a -> a -> b)
-                switch = if firstTrue then id else flip
-                newYi = switch (condYT key) yi1 yi2
-                mkCond a b
-                    | a == b = pure a
-                    | otherwise = recordPartial $
-                        Free (switch (CondE (Pure key)) (Pure a) (Pure b))
-            base <- mkBase [regs1, regs2]
-            newRegs <- traverse (uncurry mkCond) $
-                HM.intersectionWith (,) (regs1 <> base) (regs2 <> base)
-            pure $ SymState newCond newYi newRegs
+mergeSymStates :: _ => [SymState] -> m SymState
+mergeSymStates states =
+    case genTree states' of
+        Nothing -> compilerError $ vsep
+            [ "Bad conditions:"
+            , indent 4 . vsep $ codeAnn . viaShow <$> states'
+            , viaShow states
+            ]
+        Just (newCond, tree) -> do
+            base <- mkBase (snd <$> states')
+            let gen r (LeafCT m) = pure $ HM.lookupDefault (base HM.! r) r m
+                gen r (CondCT cond t e) = do
+                    tname <- gen r t
+                    ename <- gen r e
+                    if tname == ename
+                        then pure tname
+                        else recordItem $ ComplexItem (CondE cond tname ename)
+            newRegs <- fmap HM.fromList $
+                (\r -> (r,) <$> gen r tree) `traverse` HM.keys base
+            pure $ SymState newCond newRegs
+    where
+        states' = convert <$> states
+        convert ss = (ss ^. ssCond, ss ^. ssRegs)
 
 type SymMap = HM.HashMap YieldId SymState
 
-mergeSymMap :: _ => SymMap -> SymMap -> m SymMap
-mergeSymMap a b = sequence $ HM.unionWith go (pure <$> a) (pure <$> b)
-    where
-        go x y = join (mergeSymState <$> x <*> y)
-
 singleSymMap :: YieldId -> SymMap
-singleSymMap yid = HM.singleton yid (SymState HM.empty (YieldYT yid) HM.empty)
+singleSymMap yid = HM.singleton yid ss
+    where
+        ss = SymState
+            { _ssCond = HM.empty
+            , _ssRegs = HM.empty
+            }
+
+mergeSymMaps :: _ => [SymMap] -> m SymMap
+mergeSymMaps =
+    traverse mergeSymStates
+        . foldl' (HM.unionWith (++)) HM.empty
+        . (fmap . fmap) (: [])
 
 getReg :: _ => RegState -> Reg -> m IName
 getReg regs r = case regs ^. at r of
@@ -176,8 +194,10 @@ symbolicAnalysis build = topo pass
         gen (yid, lbl) = (lbl, singleSymMap yid)
         mkStart = HM.fromList . map gen . HM.toList
         pass = TopoPass
-            { _tpStart = mkStart $ build ^. pbYieldPostLabels
+            { _tpStart = fmap (:[]) (mkStart $ build ^. pbYieldPostLabels)
             , _tpSucc = pure . succSymMap (build ^. pbGraph)
-            , _tpMerge = mergeSymMap
-            , _tpWork = workSymMap (build ^. pbGraph)
+            , _tpMerge = mergeSymMaps
+            , _tpWork =
+                (fmap . fmap . fmap . fmap) (: []) $
+                    workSymMap (build ^. pbGraph)
             }
