@@ -1,0 +1,77 @@
+proc sieve(din: u8) {
+    var wr: b = 0b;
+    output wr;
+
+    var dout: u8 = 0u8;
+    output dout;
+
+    var addr: u8 = 0u8;
+    output addr;
+
+    var rdy: b = 0b;
+    output rdy;
+
+    var done: b = 0b;
+    output done;
+
+    addr = 0u8;
+    wr = 1b;
+    dout = 0u8;
+    do {
+        yield;
+        addr = addr + 1u8;
+    } while (addr <= 100u8);
+
+    var i: u8 = 2u8;
+    dout = 1u8;
+    do {
+        addr = i + i;
+        if (addr <= 100u8) {
+            do {
+                yield;
+                addr = addr + i;
+            } while (addr <= 100u8);
+        } else {
+            // break not implemented yet
+            wr = 0b;
+            yield;
+            wr = 1b;
+        }
+
+        i = i + 1u8;
+    } while (i <= 100u8);
+
+    wr = 0b;
+
+    var end: u8 = 0u8;
+
+    i = 2u8;
+    do {
+        addr = i;
+        yield;
+        yield;
+        if (! din) {
+            addr = end;
+            dout = i;
+            wr = 1b;
+            yield;
+            wr = 0b;
+            end = end + 1u8;
+        }
+        i = i + 1u8;
+    } while (i <= 100u8);
+
+    rdy = 1b;
+
+    addr = 0u8;
+    while (addr < end) {
+        yield;
+        addr = addr + 1u8;
+    }
+
+    done = 1b;
+
+    loop {
+        yield;
+    }
+}

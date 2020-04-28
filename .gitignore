@@ -1,3 +1,5 @@
 .stack-work/
 *~
 .vscode/settings.json
+**/*.vcd
+**/*.vvp
