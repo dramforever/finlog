@@ -2,6 +2,9 @@
 
 module sieve_tb();
     reg clk;
+    initial clk = 1'b0;
+    always #50 clk = ~clk;
+
     reg rst;
 
     wire [7:0] addr;
@@ -32,21 +35,19 @@ module sieve_tb();
         $dumpvars(0, sieve_tb);
 
         rst = 1'b1;
-        #50 clk = 1'b1;
-        #50 clk = 1'b0;
+        @(negedge clk);
         rst = 1'b0;
 
         for (i = 0; done !== 1'b1; i ++) begin
-            #50 clk = 1'b1;
-            #50 clk = 1'b0;
-            rst = 1'b0;
+            @(negedge clk);
         end
 
         ending = i + 20;
 
         for (i = i; i < ending; i ++) begin
-            #50 clk = 1'b1;
-            #50 clk = 1'b0;
+            @(negedge clk);
         end
+
+        $finish();
     end
 endmodule
