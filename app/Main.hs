@@ -33,21 +33,13 @@ genProcess :: Process -> IO V.Module
 genProcess process@(Process name _ _) = run $ do
     build <- buildProcess process
 
-    sortOn fst (HM.toList (build ^. pbGraph . blockMap)) `forM_` \(l, g) ->
-        liftIO . hPutStrLn stderr $ show l ++ " => " ++ show g
-
     symbolic <- symbolicAnalysis build
     allINames <- HM.keys <$> use fwdMap
     allINames `forM_` infer
 
-    liftIO . hPutStrLn stderr $ "=== symbolic done ==="
-
     let regs = catMaybes $
             (`HM.lookup` symbolic)
             <$> HM.elems (build ^. pbYieldLabels)
-
-    sort (HM.elems (build ^. pbYieldLabels)) `forM_` \yl ->
-        liftIO . hPutStrLn stderr $ show yl ++ " => " ++ show (HM.lookup yl symbolic)
 
     mergedSym <- mergeSymMaps regs
 
