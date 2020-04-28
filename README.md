@@ -35,7 +35,7 @@ Synchronous hardware also runs step by step, which means that if the state space
 
 In this case, the code is compiled into a synthesizable Verilog module (output abridged for readability):
 
-```systemverilog
+```verilog
 module main (clk, rst, out$counter);
     input clk;
     input rst;
@@ -52,20 +52,22 @@ module main (clk, rst, out$counter);
     reg [0:0] state$;
     always @(posedge clk)
         if (rst) begin
-            state$ <= 1'd0;
-            reg$counter$4 <= _$48;
-            reg$a$9 <= _$45;
-            reg$out$13 <= _$48;
-            reg$b$18 <= _$41;
-            reg$c$22 <= _$42;
+            case (1'b1)
+                _$41: state$ <= 1'd0;
+            endcase
+            reg$counter$4 <= _$49;
+            reg$a$9 <= _$46;
+            reg$out$13 <= _$49;
+            reg$b$18 <= _$42;
+            reg$c$22 <= _$43;
         end else case (state$)
             1'd0: begin
-                state$ <= 1'd1;
+                case (1'b1)
+                    _$41: state$ <= 1'd1;
+                endcase
                 reg$out$13 <= _$10;
             end
             1'd1: begin
-                state$ <= 1'd0;
-                reg$counter$4 <= _$29;
                 // ...
             end
         endcase
@@ -74,7 +76,9 @@ endmodule
 
 As you can see, the execution of an otherwise pretty imperative-looking program is converted into a state machine.
 
-The feature set is limited but should allow basic imperative programs, But there's no documentation now, so for everything I said above you probably need to just take my word for it. A bare minimum driver program is available and can be accessed by `stack run` or `cabal run`.
+The feature set is limited but should allow basic imperative programs, But there's no documentation now, so for everything I said above you probably need to just take my word for it.
+
+A bare minimum driver program is available and can be accessed by `stack run` or `cabal run`. An example implementing a prime sieve on a block RAM is available in the `examples/sieve` directory.
 
 Hey, at least I wrote a sorta working compiler.
 
@@ -82,10 +86,10 @@ Hey, at least I wrote a sorta working compiler.
 
 - Input text is parsed into an AST using [megaparsec]
 - The AST is converted into a control flow graph (CFG), the design of which is inspired greatly by [hoopl]. The 'algebraic' approach really took a large amount of mental burden off the construction of CFGs. Unfortunately, I was unable to find sufficient documentation on hoopl to get me started, and I am worried that the design of hoopl might not be flexible enough for use in finlog.
-- The CFG is effectively broken up at `yield` statements and the program is executed symbolically in topological order. We track which state we were in and the branches we took along the way, and at control flow merging points we combine the values, picking conditions that can tell histories apart.
+- The CFG is effectively broken up at `yield` statements and the program is executed symbolically in topological order. We track which state we were in and keep track of the boolean variable indicating whether this branch is taken, and at control flow merging points we combine the values and the indicator.
     - The values are saved in a hash-consed DAG
-- We gather up all the data the data in a way that's like a huge control flow merge.
-- The program is a state machine now, and we generate SystemVerilog code using a homemade AST and [prettyprinter].
+- We gather up all the data in a way that's like a huge control flow merge.
+- The program is a state machine now, and we generate Verilog code using a homemade AST and [prettyprinter].
 
 A large amount of plumbing is powered by [mtl] and [microlens].
 
