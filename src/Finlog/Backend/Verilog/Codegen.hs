@@ -67,8 +67,9 @@ genStmt (Case scrut brs) = vsep
     , "endcase"
     ]
     where
-        genBranch (lit, stmt) =
-            genLiteral lit <> ":" <+> genStmt stmt
+        genBranch (expr, stmt) =
+            genExpr expr <> ":" <+> genStmt stmt
+
 genStmt (Comment cmt) = vsep $ go <$> T.lines cmt
     where go l = "//" <+> pretty l
 

@@ -29,7 +29,7 @@ data Stmt
     | Expr :=: Expr
     | Expr :<=: Expr
     | If Expr Stmt (Maybe Stmt)
-    | Case Expr [(Literal, Stmt)]
+    | Case Expr [(Expr, Stmt)]
     | Comment T.Text
 
 data Expr

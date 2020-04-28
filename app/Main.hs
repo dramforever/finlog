@@ -13,28 +13,43 @@ import qualified Finlog.Backend.Verilog.AST as V
 import           Finlog.Backend.Verilog.Codegen
 import           Finlog.Backend.Verilog.Translate
 import           Finlog.Framework.DAG
+import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
 import           Finlog.Frontend.Type
 import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
+import           Finlog.Utils.Pretty
 import           Finlog.Utils.Unique
 import           Lens.Micro.Platform
 import           System.Environment
 import           System.Exit
+import           System.IO
 import           Text.Megaparsec
+
 
 genProcess :: Process -> IO V.Module
 genProcess process@(Process name _ _) = run $ do
     build <- buildProcess process
 
+    sortOn fst (HM.toList (build ^. pbGraph . blockMap)) `forM_` \(l, g) ->
+        liftIO . hPutStrLn stderr $ show l ++ " => " ++ show g
+
     symbolic <- symbolicAnalysis build
     allINames <- HM.keys <$> use fwdMap
     allINames `forM_` infer
 
-    mergedSym <- mergeSymMaps . catMaybes $
-        (`HM.lookup` symbolic) <$> HM.elems (build ^. pbYieldLabels)
+    liftIO . hPutStrLn stderr $ "=== symbolic done ==="
+
+    let regs = catMaybes $
+            (`HM.lookup` symbolic)
+            <$> HM.elems (build ^. pbYieldLabels)
+
+    sort (HM.elems (build ^. pbYieldLabels)) `forM_` \yl ->
+        liftIO . hPutStrLn stderr $ show yl ++ " => " ++ show (HM.lookup yl symbolic)
+
+    mergedSym <- mergeSymMaps regs
 
     let recode (yid, yl) = case HM.lookup yl symbolic of
             Nothing -> HM.empty
@@ -44,12 +59,6 @@ genProcess process@(Process name _ _) = run $ do
             foldl' (HM.unionWith (++)) HM.empty
             . (fmap . fmap) (: [])
         combined = combine $ recode <$> HM.toList (build ^. pbYieldLabels)
-        genTreeError lbl tree = case genTree tree of
-            Nothing ->
-                compilerError $ "Could not generate tree for" <+> codeAnn (viaShow lbl)
-            Just (_, val) -> pure val
-
-    mergedYield <- HM.traverseWithKey genTreeError combined
 
     fm <- use fwdMap
     sortOn fst (HM.toList fm) `forM_` \(k, _) -> infer k
@@ -63,7 +72,7 @@ genProcess process@(Process name _ _) = run $ do
             , _tiOutputVars = build ^. pbOutputVars
             , _tiSymbolic =
                 HM.intersectionWith (,)
-                    mergedYield
+                    combined
                     ((^. ssRegs) <$> mergedSym)
             , _tiYieldIdSet = HS.fromMap (() <$ build ^. pbYieldLabels)
             , _tiResetId = build ^. pbResetId
@@ -103,13 +112,34 @@ data ProgState f
     , _psTypeMap :: TypeMap
     }
 
+prettyLabelTree :: ProgState f -> Doc Ann
+prettyLabelTree sta = vsep $ go' <$> (reverse . map reverse) (sta ^. labelTree)
+    where
+        go' = vsep . fmap go
+        go (LabelTree lbl []) =
+            heading lbl
+        go (LabelTree lbl ch) = vsep
+            [ heading lbl
+            , indent 4 $ go' ch
+            ]
+        heading lbl =
+            "-" <+> codeAnn (viaShow lbl) <+> markPart
+            where
+                markPart = case sta ^. labelMarks . at lbl of
+                    Just (h : _) -> prettyMark h
+                    _ -> "<unknown>"
+
 run :: ExceptT CompilerError (StateT (ProgState ExprF) IO) a -> IO a
-run act = evalStateT (runExceptT act) initial >>= \case
-    Left err -> do
-        putDoc (toAnsi $ prettyCompilerError err)
-        putStrLn ""
+run act = runStateT (runExceptT act) initial >>= \case
+    (Left err, sta) -> do
+        hPutDoc stderr (toAnsi $ prettyCompilerError err)
+        hPutStrLn stderr ""
+        hPutStrLn stderr ""
+        hPutStrLn stderr "Label tree:"
+        hPutDoc stderr (toAnsi $ prettyLabelTree sta)
+        hPutStrLn stderr ""
         exitFailure
-    Right result -> pure result
+    (Right result, _sta) -> pure result
     where initial = ProgState initialSupply emptyItemMap initialBuildState initialTypeMap
 
 $(makeLenses ''ProgState)

@@ -25,6 +25,9 @@ data VarInfo
     }
     deriving (Show, Eq)
 
+data LabelTree = LabelTree Label [LabelTree]
+    deriving (Show, Eq)
+
 data BuildState = BuildState
     { _varMap :: HM.HashMap Var VarInfo
     , _bsOutputVars :: HM.HashMap Var Reg
@@ -32,6 +35,7 @@ data BuildState = BuildState
     , _yieldLabels :: HM.HashMap YieldId Label
     , _yieldPostLabels :: HM.HashMap YieldId Label
     , _markStack :: [Mark]
+    , _labelTree :: [[LabelTree]]
     }
     deriving (Show)
 
@@ -50,6 +54,7 @@ freshLabelMark :: _ => T.Text -> m Label
 freshLabelMark name = do
     label <- freshLabel name
     use markStack >>= (labelMarks . at label ?=)
+    labelTree . _head %= (LabelTree label [] :)
     pure label
 
 initialBuildState :: BuildState
@@ -61,6 +66,7 @@ initialBuildState =
     , _yieldLabels = HM.empty
     , _yieldPostLabels = HM.empty
     , _markStack = []
+    , _labelTree = [[]]
     }
 
 lookupVar :: _ => Getting a VarInfo a -> Var -> m a
@@ -153,8 +159,11 @@ nonPred x pr afb s = f <$> afb (fromMaybe x s)
 buildStmt :: (HasCallStack, _) => Stmt -> m (Graph (Node m) 'O 'O)
 buildStmt (Stmt pos stmt) = withMark (Mark "statement" pos) $ do
     label <- freshLabelMark "stmt"
+    labelTree %= ([] :)
     labelMarks . at label . nonPred [] null %= (Mark "statement" pos :)
     graph <- buildStmtRaw stmt
+    (top : (_ : nextMore) : rest) <- use labelTree
+    labelTree .= (LabelTree label (reverse top) : nextMore) : rest
     pure $ mkFinal (JumpN label) >|< mkLabel label >< graph
 
 checkAssignable :: _ => Typ -> Typ -> m ()

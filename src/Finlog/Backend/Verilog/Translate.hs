@@ -13,12 +13,14 @@ import           Finlog.IR.Node
 import           Finlog.Utils.Unique
 import           Lens.Micro.Platform
 
+type YieldTable = [(IName, YieldId)]
+
 data TranslationInput
     = TranslationInput
     { _tiName :: Var
     , _tiInputVars :: HM.HashMap Var Typ
     , _tiOutputVars :: HM.HashMap Var Reg
-    , _tiSymbolic :: HM.HashMap YieldId (CondTree YieldId, RegState)
+    , _tiSymbolic :: HM.HashMap YieldId (YieldTable, RegState)
     , _tiYieldIdSet :: HS.HashSet YieldId
     , _tiResetId :: YieldId
     , _tiFwdMap :: HM.HashMap IName (Item ExprF)
@@ -107,19 +109,21 @@ generateGate tin =
             . HM.delete resetId
             $ tin ^. tiSymbolic
 
-        genYT (LeafCT yid) = V.LitE $ stateMap HM.! yid
-        genYT (CondCT iname t e) =
-            V.CondE (V.VarE $ mkIName iname) (genYT t) (genYT e)
+        genYT =
+            V.Case (V.LitE (V.Literal 1 V.Bit)) . fmap go
+            where
+                go (iname, yid) =
+                    ( V.VarE (mkIName iname)
+                    , V.VarE stateReg V.:<=: V.LitE (stateMap HM.! yid)
+                    )
 
         genRegs regs =
             ((\(r, i) -> (V.VarE $ mkReg r) V.:<=: (V.VarE $ mkIName i))
                 <$> sortOn fst (HM.toList regs))
 
         genBranch (yid, (yt, regs)) =
-            ( stateMap HM.! yid
-            , V.Block $
-                (V.VarE stateReg V.:<=: genYT yt)
-                : genRegs regs
+            ( V.LitE (stateMap HM.! yid)
+            , V.Block $ genYT yt: genRegs regs
             )
 
     in  [ V.Reg (V.Unsigned numBits) stateReg

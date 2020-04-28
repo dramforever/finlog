@@ -26,7 +26,11 @@ posAnn = annotate PositionAnn
 codeAnn = annotate CodeAnn
 
 prettyPos :: SourcePos -> Doc Ann
-prettyPos = posAnn . pretty . T.pack . sourcePosPretty
+prettyPos sp = posAnn $ hcat
+    [ viaShow (unPos $ sourceLine sp)
+    , ":"
+    , viaShow (unPos $ sourceColumn sp)
+    ]
 
 data Mark = Mark (Doc Ann) SourcePos
 
