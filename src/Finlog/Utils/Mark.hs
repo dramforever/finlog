@@ -3,11 +3,10 @@ module Finlog.Utils.Mark
     , module Data.Text.Prettyprint.Doc
     ) where
 
-import           Control.Monad.Except
-import qualified Data.Text as T
-import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.Terminal
-import           Text.Megaparsec
+import Control.Monad.Except
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
+import Text.Megaparsec
 
 data Ann = HeadWordAnn | PositionAnn | CodeAnn
     deriving (Show, Eq)

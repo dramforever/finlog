@@ -13,14 +13,12 @@ import qualified Finlog.Backend.Verilog.AST as V
 import           Finlog.Backend.Verilog.Codegen
 import           Finlog.Backend.Verilog.Translate
 import           Finlog.Framework.DAG
-import           Finlog.Framework.Graph
 import           Finlog.Frontend.AST
 import qualified Finlog.Frontend.Parser as Parser
 import           Finlog.Frontend.Type
 import           Finlog.IR.Analysis.Symbolic
 import           Finlog.IR.Build
 import           Finlog.Utils.Mark
-import           Finlog.Utils.Pretty
 import           Finlog.Utils.Unique
 import           Lens.Micro.Platform
 import           System.Environment

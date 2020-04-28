@@ -6,7 +6,6 @@ import           Control.Monad.State
 import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
-import           Data.Maybe
 import           Data.Traversable
 import           Finlog.Framework.DAG
 import           Finlog.Framework.Graph
@@ -14,9 +13,7 @@ import           Finlog.Framework.Topo
 import           Finlog.Frontend.AST
 import           Finlog.IR.Build
 import           Finlog.IR.Node
-import           Finlog.Utils.Mark
 import           Finlog.Utils.MiniState
-import           Finlog.Utils.Unique
 import           GHC.Stack
 import           Lens.Micro.Platform
 
