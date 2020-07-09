@@ -1,0 +1,52 @@
+proc uart(data: u8, valid: b) {
+    var ready: b = 1b;
+    output ready;
+
+    var tx: b = 1b;
+    output tx;
+
+    loop {
+        while (! valid) {
+            yield;
+        }
+
+        var latched: u8 = data;
+
+        ready = 0b;
+
+        var ctr: u5 = 0u5;
+
+        tx = 0b;
+
+        ctr = 0u5;
+        do {
+            yield;
+            ctr = ctr + 1u5;
+        } while (ctr < 25u5);
+
+        var i: u3 = 0u3;
+        var cur: u8 = 1u8;
+
+        do {
+            tx = latched & cur == cur;
+            i = i + 1u3;
+            cur = cur + cur;
+
+            ctr = 0u5;
+            do {
+                yield;
+                ctr = ctr + 1u5;
+            } while (ctr < 25u5);
+        } while (i != 0u3);
+
+        tx = 1b;
+
+        ctr = 0u5;
+        do {
+            yield;
+            ctr = ctr + 1u5;
+        } while (ctr < 25u5);
+
+        ready = 1b;
+    }
+}
