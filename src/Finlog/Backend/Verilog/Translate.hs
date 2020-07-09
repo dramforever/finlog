@@ -40,24 +40,24 @@ mkLit :: Literal -> V.Literal
 mkLit (IntLitL (IntLit int ty)) = V.Literal int (mkTyp (IntType ty))
 
 stateReg :: V.VerilogVar
-stateReg = V.VerilogVar "state$"
+stateReg = V.VerilogVar "state__"
 
 mkInput :: Var -> V.VerilogVar
-mkInput (Var name) = V.VerilogVar $ "in$" <> name
+mkInput (Var name) = V.VerilogVar $ "in__" <> name
 
 mkOutput :: Var -> V.VerilogVar
-mkOutput (Var name) = V.VerilogVar $ "out$" <> name
+mkOutput (Var name) = V.VerilogVar $ "out__" <> name
 
 mkReg :: Reg -> V.VerilogVar
 mkReg (Reg name (Unique n)) =
-    V.VerilogVar $ "reg$" <> name <> "$" <> T.pack (show n)
+    V.VerilogVar $ "reg__" <> name <> "__" <> T.pack (show n)
 
 mkRegD :: Reg -> Typ -> V.Decl
 mkRegD reg typ = V.Reg (mkTyp typ) (mkReg reg)
 
 mkIName :: IName -> V.VerilogVar
 mkIName (IName (Unique n)) =
-    V.VerilogVar $ "_$" <> T.pack (show n)
+    V.VerilogVar $ "__" <> T.pack (show n)
 
 mkINameD :: IName -> Typ -> V.Expr -> V.Decl
 mkINameD iname typ expr = V.Wire (mkTyp typ) (mkIName iname) expr

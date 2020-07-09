@@ -23,8 +23,8 @@ module sieve_tb();
 
     sieve sieve_0 (
         .clk, .rst,
-        .out$addr(addr), .out$wr(wr), .in$din(drd), .out$dout(dwr),
-        .out$rdy(rdy), .out$done(done)
+        .out__addr(addr), .out__wr(wr), .in__din(drd), .out__dout(dwr),
+        .out__rdy(rdy), .out__done(done)
     );
 
     integer i;
