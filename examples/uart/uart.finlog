@@ -6,15 +6,14 @@ proc uart(data: u8, valid: b) {
     output tx;
 
     loop {
-        while (! valid) {
+        do {
             yield;
-        }
+        } while (! valid);
 
         var latched: u8 = data;
+        var ctr: u5 = 0u5;
 
         ready = 0b;
-
-        var ctr: u5 = 0u5;
 
         tx = 0b;
 
@@ -28,6 +27,7 @@ proc uart(data: u8, valid: b) {
         var cur: u8 = 1u8;
 
         do {
+            // Bit shift operator not yet implemented
             tx = latched & cur == cur;
             i = i + 1u3;
             cur = cur + cur;

@@ -33,18 +33,15 @@ module uart_tb();
             @(negedge clk);
         end
 
-        data = 8'h53;
         valid = 1'b1;
 
-        while (! ready) begin
-            @(negedge clk);
-        end
+        for (i = 0; i <= 10; i ++) begin
+            data = i[7:0];
 
-        @(negedge clk);
+            while (! ready) begin
+                @(negedge clk);
+            end
 
-        valid = 1'b0;
-
-        while (! ready) begin
             @(negedge clk);
         end
 
