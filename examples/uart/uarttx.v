@@ -1,4 +1,4 @@
-module uart (clk, rst, in__data, in__valid, out__tx, out__ready);
+module uarttx (clk, rst, in__data, in__valid, out__tx, out__ready);
     input clk;
     input rst;
     input [7:0] in__data;

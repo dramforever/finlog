@@ -1,4 +1,4 @@
-proc uart(data: u8, valid: b) {
+proc uarttx(data: u8, valid: b) {
     var ready: b = 1b;
     output ready;
 

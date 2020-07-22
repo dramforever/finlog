@@ -1,0 +1,47 @@
+proc uartrx(ready: b, rx: b) {
+    var data: u8 = 0u8;
+    output data;
+
+    var valid: b = 0b;
+    output valid;
+
+    yield;
+
+    loop {
+        var ctr: u6 = 0u6;
+
+        while (rx) { yield; }
+
+        ctr = 0u6;
+        do {
+            yield;
+            ctr = ctr + 1u6;
+        } while (ctr != 37u6);
+
+        data = 0u8;
+        var i: u3 = 0u3;
+        var cur: u8 = 1u8;
+        do {
+            if (rx) {
+                data = data | cur;
+            }
+
+            cur = cur + cur;
+            i = i + 1u3;
+
+            ctr = 0u6;
+            do {
+                yield;
+                ctr = ctr + 1u6;
+            } while (ctr != 25u6);
+        } while (i != 0u3);
+
+        if (rx) {
+            // Valid frame
+            valid = 1b;
+            while (! ready) { yield; }
+            yield;
+            valid = 0b;
+        }
+    }
+}
