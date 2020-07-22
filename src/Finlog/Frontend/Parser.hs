@@ -112,7 +112,7 @@ operatorTable =
             , [LAnd, LOr]
             ]
         ternary =
-            [ [TernR $ (condE <$ symbol ":") <$ "?"]
+            [ [TernR $ (condE <$ symbol ":") <$ symbol "?"]
             ]
 
         toStrs :: Show a => [[a]] -> Parser T.Text
