@@ -73,7 +73,10 @@ typ = IntType <$> intType
 
 -- No space allowed after minus sign
 signed :: Parser Integer
-signed = L.signed (pure ()) L.decimal
+signed =
+    L.signed (pure ()) L.decimal
+    <|> "0x" *> L.hexadecimal
+    <|> "0b" *> L.binary
 
 intLit :: Parser IntLit
 intLit = lexeme . try $

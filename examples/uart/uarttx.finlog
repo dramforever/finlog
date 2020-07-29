@@ -6,22 +6,25 @@ proc uarttx(data: u8, valid: b) {
     output tx;
 
     loop {
-        do {
+        while (! valid) {
             yield;
-        } while (! valid);
+        }
 
         var latched: u8 = data;
-        var ctr: u5 = 0u5;
+
+        yield;
+
+        var ctr: u6 = 0u6;
 
         ready = 0b;
 
         tx = 0b;
 
-        ctr = 0u5;
+        ctr = 0u6;
         do {
             yield;
-            ctr = ctr + 1u5;
-        } while (ctr < 25u5);
+            ctr = ctr + 1u6;
+        } while (ctr < 50u6);
 
         var i: u3 = 0u3;
         var cur: u8 = 1u8;
@@ -32,20 +35,20 @@ proc uarttx(data: u8, valid: b) {
             i = i + 1u3;
             cur = cur + cur;
 
-            ctr = 0u5;
+            ctr = 0u6;
             do {
                 yield;
-                ctr = ctr + 1u5;
-            } while (ctr < 25u5);
+                ctr = ctr + 1u6;
+            } while (ctr < 50u6);
         } while (i != 0u3);
 
         tx = 1b;
 
-        ctr = 0u5;
+        ctr = 0u6;
         do {
             yield;
-            ctr = ctr + 1u5;
-        } while (ctr < 25u5);
+            ctr = ctr + 1u6;
+        } while (ctr < 50u6);
 
         ready = 1b;
     }

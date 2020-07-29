@@ -8,15 +8,15 @@ proc uartrx(ready: b, rx: b) {
     yield;
 
     loop {
-        var ctr: u6 = 0u6;
+        var ctr: u7 = 0u7;
 
         while (rx) { yield; }
 
-        ctr = 0u6;
+        ctr = 0u7;
         do {
             yield;
-            ctr = ctr + 1u6;
-        } while (ctr != 37u6);
+            ctr = ctr + 1u7;
+        } while (ctr != 75u7);
 
         data = 0u8;
         var i: u3 = 0u3;
@@ -29,11 +29,11 @@ proc uartrx(ready: b, rx: b) {
             cur = cur + cur;
             i = i + 1u3;
 
-            ctr = 0u6;
+            ctr = 0u7;
             do {
                 yield;
-                ctr = ctr + 1u6;
-            } while (ctr != 25u6);
+                ctr = ctr + 1u7;
+            } while (ctr != 50u7);
         } while (i != 0u3);
 
         if (rx) {
