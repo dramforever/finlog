@@ -1,0 +1,69 @@
+proc lcd(data: u8, valid: b) {
+    var ready: b = 0b;
+    output ready;
+
+    var en: b = 0b;
+    output en;
+
+    var rs: b = 0b;
+    output rs;
+
+    var rw: b = 0b;
+    output rw;
+
+    var lcd_out: u8 = 0u8;
+    output lcd_out;
+
+#define DELAY(val, type) \
+    { \
+        var ctr: type = 0##type; \
+        do { \
+            yield; \
+            ctr = ctr + 1##type; \
+        } while (ctr != val##type); \
+    }
+
+#define EN_DELAY DELAY(50000, u16)
+#define WAIT_DELAY DELAY(50000, u16)
+#define INIT_DELAY DELAY(205000, u18)
+
+#define IREG 0b
+#define DREG 1b
+
+#define WRITE(R, D) \
+    { \
+        rs = (R); \
+        rw = 0b; \
+        lcd_out = (D); \
+        EN_DELAY \
+        en = 1b; \
+        EN_DELAY \
+        en = 0b; \
+        WAIT_DELAY \
+    }
+
+    // Initialize by instruction
+    WRITE(IREG, $b00111000u8)
+    INIT_DELAY
+    WRITE(IREG, $b00111000u8)
+    INIT_DELAY
+    WRITE(IREG, $b00111000u8)
+    INIT_DELAY
+
+    WRITE(IREG, $b00111000u8)  // 8-bit, 2 lines, 5x8 font
+    WRITE(IREG, $b00000001u8)  // Clear display, home cursor
+    WRITE(IREG, $b00001110u8)  // Display on, cursor on, blinking off
+    WRITE(IREG, $b00000110u8)  // Auto-increment, shift off
+
+    var count: u5 = 0u5;
+
+    loop {
+        ready = 1b;
+        while (! valid) { yield; }
+        var latched: u8 = data;
+        yield;
+
+        ready = 0b;
+        WRITE(DREG, latched)
+    }
+}
